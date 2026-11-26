@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -9,7 +9,13 @@ from greenlight.application.loading import (
     approvals_waiting_on,
     request_by_reference,
 )
-from greenlight.application.ports import AuditEntry, Clock, RateRow, UnitOfWork
+from greenlight.application.ports import (
+    AuditEntry,
+    Clock,
+    OutgoingNotification,
+    RateRow,
+    UnitOfWork,
+)
 from greenlight.domain.catalog import Category, Tag, TagKind
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import NotPermitted
@@ -82,6 +88,17 @@ class RulesView:
 class RateView:
     rate: RateRow
     is_stale: bool
+
+
+@dataclass(frozen=True)
+class InboxItem:
+    subject: str
+    body: str
+    reference: str | None
+    created_at: datetime
+    channel: str
+    delivery_error: str
+    is_new: bool
 
 
 @dataclass
@@ -341,6 +358,14 @@ class SpendQueries:
                 raise NotPermitted("The audit log is for finance and admins.")
             return list(reversed(uow.audit.all()))
 
+    def inbox(self, user_id: UUID) -> list[InboxItem]:
+        with self._unit_of_work() as uow:
+            return [_inbox_item(uow, n) for n in uow.outbox.for_recipient(user_id)]
+
+    def unread_count(self, user_id: UUID) -> int:
+        with self._unit_of_work() as uow:
+            return uow.outbox.unread_count(user_id)
+
     def _context(self, uow: UnitOfWork, viewer_id: UUID) -> _ViewerContext:
         today = self._clock.now().date()
         viewer = active_person(uow, viewer_id)
@@ -361,6 +386,19 @@ def _waiting(
         candidates = uow.requests.with_status(RequestStatus.PENDING)
     waiting = [r for r in candidates if context.can_decide(r)]
     return sorted(waiting, key=lambda r: r.pending_step.activated_at)
+
+
+def _inbox_item(uow: UnitOfWork, notification: OutgoingNotification) -> InboxItem:
+    request = uow.requests.get(notification.request_id) if notification.request_id else None
+    return InboxItem(
+        subject=notification.subject,
+        body=notification.body,
+        reference=request.reference if request else None,
+        created_at=notification.created_at,
+        channel=notification.channel,
+        delivery_error=notification.delivery_error,
+        is_new=notification.read_at is None,
+    )
 
 
 def _lookups(uow: UnitOfWork) -> Lookups:

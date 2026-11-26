@@ -173,6 +173,25 @@ def test_reminders_go_to_approvers_who_have_not_acted(company, uow, approvals, c
     assert uow.outbox.sent[-1].subject.startswith("Reminder")
 
 
+def test_the_approver_finds_the_request_in_their_inbox(company, approvals, queries):
+    reference = approvals.submit(company.priya.id, details(company.general), [PDF])
+
+    assert queries.unread_count(company.nadia.id) == 1
+    [item] = queries.inbox(company.nadia.id)
+    assert item.subject == f"Approval needed: Annual licence ({reference})"
+    assert item.reference == reference
+    assert item.is_new
+
+
+def test_opening_the_inbox_marks_everything_read(company, approvals, queries):
+    approvals.submit(company.priya.id, details(company.general), [PDF])
+
+    approvals.mark_inbox_read(company.nadia.id)
+
+    assert queries.unread_count(company.nadia.id) == 0
+    assert not queries.inbox(company.nadia.id)[0].is_new
+
+
 def test_invoice_is_matched_to_its_approval(company, uow, clock):
     invoice = Invoice(
         supplier="ACME Limited",
