@@ -13,6 +13,7 @@ from greenlight.infrastructure.ai.document_readers import (
 )
 from greenlight.infrastructure.ai.groq_model import GroqModel
 from greenlight.infrastructure.ai.openai_model import OpenAIModel
+from greenlight.infrastructure.ai.remembered_readings import RememberedReadings
 from greenlight.infrastructure.clock import SystemClock
 from greenlight.infrastructure.notifications.delivery import NotificationSender
 from greenlight.infrastructure.persistence.orm import start_mappers
@@ -35,9 +36,9 @@ class Container:
 def document_model(settings: Settings) -> DocumentModel | None:
     """Groq when its key is set, else OpenAI, else no AI reading at all."""
     if groq_key := settings.groq_api_key.get_secret_value():
-        return GroqModel(groq_key, settings.groq_model)
+        return RememberedReadings(GroqModel(groq_key, settings.groq_model))
     if openai_key := settings.openai_api_key.get_secret_value():
-        return OpenAIModel(openai_key, settings.openai_model)
+        return RememberedReadings(OpenAIModel(openai_key, settings.openai_model))
     return None
 
 
