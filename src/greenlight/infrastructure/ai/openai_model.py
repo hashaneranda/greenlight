@@ -1,9 +1,14 @@
 import base64
+import logging
 
 from openai import OpenAI, OpenAIError
 from pydantic import BaseModel
 
 from greenlight.infrastructure.ai.document_readers import ReadFailed
+
+MOST_ANSWER_TOKENS = 1_500
+
+log = logging.getLogger(__name__)
 
 
 class OpenAIModel:
@@ -23,9 +28,17 @@ class OpenAIModel:
                 input=[{"role": "user", "content": [_document_part(content, content_type)]}],
                 text_format=schema,
                 temperature=0,
+                max_output_tokens=MOST_ANSWER_TOKENS,
             )
         except OpenAIError as error:
             raise ReadFailed(str(error)) from error
+        if usage := response.usage:
+            log.info(
+                "OpenAI read a %s: %s tokens in, %s out",
+                content_type,
+                usage.input_tokens,
+                usage.output_tokens,
+            )
         if response.output_parsed is None:
             raise ReadFailed("The model returned nothing.")
         return response.output_parsed

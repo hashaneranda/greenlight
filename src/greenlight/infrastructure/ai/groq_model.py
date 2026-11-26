@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import logging
 import re
 
 import pypdfium2
@@ -14,6 +15,10 @@ from greenlight.infrastructure.ai.document_readers import ReadFailed
 GROQ_URL = "https://api.groq.com/openai/v1"
 MOST_PAGES_AS_IMAGES = 3
 TEXT_WORTH_READING = 40
+MOST_TEXT = 12_000
+MOST_ANSWER_TOKENS = 1_500
+
+log = logging.getLogger(__name__)
 
 
 class GroqModel:
@@ -32,7 +37,7 @@ class GroqModel:
     def fill[T: BaseModel](
         self, content: bytes, content_type: str, instructions: str, schema: type[T]
     ) -> T:
-        shape = json.dumps(schema.model_json_schema())
+        shape = json.dumps(_without_titles(schema.model_json_schema()), separators=(",", ":"))
         try:
             response = self._client.chat.completions.create(
                 model=self._model,
@@ -46,10 +51,18 @@ class GroqModel:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0,
+                max_completion_tokens=MOST_ANSWER_TOKENS,
             )
         except OpenAIError as error:
             raise ReadFailed(str(error)) from error
 
+        if usage := response.usage:
+            log.info(
+                "Groq read a %s: %s tokens in, %s out",
+                content_type,
+                usage.prompt_tokens,
+                usage.completion_tokens,
+            )
         answer = _without_thinking(response.choices[0].message.content or "")
         try:
             return schema.model_validate_json(answer)
@@ -62,7 +75,7 @@ def _document_parts(content: bytes, content_type: str) -> list[dict]:
         return [_image_part(content, content_type)]
     text = _pdf_text(content)
     if len(text) >= TEXT_WORTH_READING:
-        return [{"type": "text", "text": f"The document's text:\n\n{text}"}]
+        return [{"type": "text", "text": f"The document's text:\n\n{_shortened(text)}"}]
     return [_image_part(page, "image/png") for page in _pdf_pages_as_png(content)]
 
 
@@ -87,6 +100,22 @@ def _pdf_pages_as_png(content: bytes) -> list[bytes]:
         pdf[index].render(scale=2).to_pil().save(buffer, format="PNG")
         images.append(buffer.getvalue())
     return images
+
+
+def _shortened(text: str) -> str:
+    """Long documents keep their start and end, where suppliers put who, what and the total."""
+    if len(text) <= MOST_TEXT:
+        return text
+    half = MOST_TEXT // 2
+    return f"{text[:half]}\n\n[…middle pages left out…]\n\n{text[-half:]}"
+
+
+def _without_titles(schema: object) -> object:
+    if isinstance(schema, dict):
+        return {key: _without_titles(value) for key, value in schema.items() if key != "title"}
+    if isinstance(schema, list):
+        return [_without_titles(value) for value in schema]
+    return schema
 
 
 def _without_thinking(answer: str) -> str:
