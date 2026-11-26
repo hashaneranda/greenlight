@@ -13,7 +13,7 @@ from greenlight.domain.errors import NotPermitted
 from greenlight.web import auth
 from greenlight.web.container import Container, build_container
 from greenlight.web.deps import render
-from greenlight.web.routes import admin, cover, home, payments, requests
+from greenlight.web.routes import admin, cover, home, manage, payments, requests
 from greenlight.web.security import BodySizeLimit, HourlyLimit, SecurityHeaders
 
 
@@ -60,6 +60,6 @@ def create_app(settings: Settings | None = None, container: Container | None = N
 
     static = Path(__file__).parent / "static"
     app.mount("/static", StaticFiles(directory=static), name="static")
-    for module in (auth, home, requests, payments, cover, admin):
+    for module in (auth, home, requests, payments, cover, admin, manage):
         app.include_router(module.router)
     return app

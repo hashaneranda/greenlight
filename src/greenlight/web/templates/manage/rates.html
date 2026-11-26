@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Exchange rates{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Exchange rates</h1>
+    <p>What one unit of each currency is worth in US dollars. Requests in other currencies are converted with these, so a rate older than {{ stale_after_days }} days is marked out of date.</p>
+  </div>
+</div>
+
+<div class="two-up">
+  <form class="sheet" method="post" action="/manage/rates">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="sheet-head"><h2>Add or update a rate</h2></div>
+    <div class="body form-body">
+      <div class="field-row">
+        <div class="field"><label for="currency">Currency</label><input id="currency" name="currency" list="currencies" maxlength="3" required autocapitalize="characters" placeholder="AED"></div>
+        <div class="field"><label for="usd_per_unit">US dollars for one</label><input id="usd_per_unit" name="usd_per_unit" inputmode="decimal" required placeholder="0.2723"></div>
+      </div>
+      <datalist id="currencies">{% for view in rates %}<option value="{{ view.rate.currency }}">{% endfor %}</datalist>
+      <button class="primary block" type="submit">Save rate</button>
+    </div>
+  </form>
+
+  <section class="sheet">
+    <div class="sheet-head"><h2>Rates in use</h2></div>
+    {% if rates %}
+    <ul class="rows">
+      {% for view in rates %}
+      {% set setter = lookups.person(view.rate.updated_by_id) %}
+      <li class="row">
+        <span class="title">{{ view.rate.currency }}</span>
+        <span class="amount">${{ view.rate.usd_per_unit|rate }}</span>
+        <span class="sub">{{ "Set by " ~ setter.name if setter else "Set at setup" }}, {{ view.rate.updated_at|when }}</span>
+        <span class="sub end">{% if view.is_stale %}<span class="status-text pending">Out of date</span>{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty"><strong>No rates yet</strong>Add one for each currency people are quoted in.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
