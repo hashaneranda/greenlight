@@ -1,9 +1,12 @@
 import re
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from httpx import Response
+from sqlalchemy import update
 
 from greenlight.config import Settings
+from greenlight.infrastructure.persistence import tables
 from greenlight.infrastructure.seed import seed_demo
 from greenlight.web.app import create_app
 from greenlight.web.container import build_container
@@ -232,3 +235,43 @@ def test_the_approver_is_told_until_they_open_their_inbox(client):
     assert [subject.split(" (")[0] for subject in new] == ["Approval needed: Water dispenser"]
     assert "Shown here only, as email isn&#39;t set up on this server" in inbox
     assert unread_counts(client.get("/").text) == []
+
+
+def test_the_request_form_warns_when_a_currency_rate_is_out_of_date(client):
+    container = client.app.state.container
+    with container.session_factory.begin() as session:
+        session.execute(
+            update(tables.exchange_rates)
+            .where(tables.exchange_rates.c.currency == "CDF")
+            .values(updated_at=datetime.now(UTC) - timedelta(days=40))
+        )
+    sign_in_as(client, "Grace Mutombo")
+
+    form = client.get("/requests/new").text
+
+    assert 'data-currency="CDF"' in form
+    assert "The CDF rate was last set on" in form
+    assert 'data-currency="AED"' not in form
+
+
+def test_a_request_without_a_quote_says_why(client):
+    sign_in_as(client, "Grace Mutombo")
+    form = client.get("/requests/new").text
+    category_id = re.search(r'<option value="([0-9a-f-]+)"\s*>Travel', form).group(1)
+
+    response = client.post(
+        "/requests",
+        data={
+            "csrf": csrf_from(form),
+            "title": "Visa for the Lubumbashi visit",
+            "supplier": "DRC immigration",
+            "justification": "Needed to enter the country.",
+            "category_id": category_id,
+            "amount": "150",
+            "currency": "USD",
+            "no_quote_reason": "A government fee, there is no quote",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Visa for the Lubumbashi visit" in response.text
