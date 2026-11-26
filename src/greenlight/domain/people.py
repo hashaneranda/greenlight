@@ -85,7 +85,7 @@ def check_reporting_line(
     by_id = {someone.id: someone for someone in everyone}
     line = [person]
     manager = by_id.get(manager_id)
-    while manager is not None:
+    while manager is not None and manager not in line[1:]:
         line.append(manager)
         if manager.id == person.id:
             names = " → ".join(someone.first_name for someone in line)
@@ -94,7 +94,7 @@ def check_reporting_line(
 
 
 def check_approvers_remain(everyone: Iterable[Employee], without: Employee) -> None:
-    others = [someone for someone in everyone if someone.is_active and someone is not without]
+    others = [someone for someone in everyone if someone.is_active and someone.id != without.id]
     for role, title in _APPROVER_ROLES.items():
         if without.has_role(role) and not any(someone.has_role(role) for someone in others):
             raise InvalidRequest(
