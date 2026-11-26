@@ -3,48 +3,56 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Cover while you're away</h1>
-    <p class="muted">Pick one colleague to approve for you. Everything they decide is recorded as on your behalf, and they can never approve their own requests.</p>
+    <h1>Going away?</h1>
+    <p>Pick one colleague to approve for you while you're gone. Their decisions are recorded as made on your behalf, and they can never approve their own requests.</p>
   </div>
 </div>
 
-<div class="grid two">
-  <section class="card">
-    <h2>Set up cover</h2>
-    <form method="post" action="/cover">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="two-up">
+  <form class="sheet" method="post" action="/cover">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="sheet-head"><h2>Set up cover</h2></div>
+    <div class="body form-body">
       <div class="field">
-        <label for="covering_id">Who covers for you</label>
+        <label for="covering_id">Who approves for you</label>
         <select id="covering_id" name="covering_id" required>
-          <option value="">Choose…</option>
-          {% for person in colleagues %}<option value="{{ person.id }}">{{ person.name }} · {{ person.job_title }}</option>{% endfor %}
+          <option value="">Choose a colleague</option>
+          {% for person in colleagues %}<option value="{{ person.id }}">{{ person.name }}, {{ person.job_title }}</option>{% endfor %}
         </select>
       </div>
       <div class="field-row">
         <div class="field"><label for="starts_on">From</label><input id="starts_on" name="starts_on" type="date" min="{{ today.isoformat() }}" value="{{ today.isoformat() }}" required></div>
-        <div class="field"><label for="ends_on">To</label><input id="ends_on" name="ends_on" type="date" min="{{ today.isoformat() }}" required></div>
+        <div class="field"><label for="ends_on">Until</label><input id="ends_on" name="ends_on" type="date" min="{{ today.isoformat() }}" required></div>
       </div>
-      <div class="field"><label for="note">Note <span class="hint">Optional, e.g. travelling to Kolwezi</span></label><input id="note" name="note" maxlength="300"></div>
-      <button class="primary" type="submit">Set cover</button>
-    </form>
-  </section>
+      <div class="field"><label for="note">Note <span class="hint">Optional, like "On site in Kolwezi"</span></label><input id="note" name="note" maxlength="300"></div>
+      <button class="primary block form-foot" type="submit">Set up cover</button>
+    </div>
+  </form>
 
-  <div class="stack">
-    <section class="card">
-      <h2>Your cover</h2>
-      {% for cover in arranged %}
-      <div class="row">
-        <span class="title">{{ lookups.person(cover.covering_id).name }}</span>
-        <form method="post" action="/cover/{{ cover.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="link small" type="submit">Cancel</button></form>
-        <span class="meta">{{ cover.starts_on|day }} to {{ cover.ends_on|day }}{% if cover.note %} · {{ cover.note }}{% endif %}</span>
-      </div>
-      {% else %}<p class="muted">None set.</p>{% endfor %}
+  <div>
+    <section class="sheet">
+      <div class="sheet-head"><h2>Covering for you</h2></div>
+      {% if arranged %}
+      <ul class="rows">
+        {% for cover in arranged %}
+        <li class="row">
+          <span class="title">{{ lookups.person(cover.covering_id).name }}</span>
+          <form method="post" action="/cover/{{ cover.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="link small" type="submit">Cancel</button></form>
+          <span class="sub">{{ cover.starts_on|day }} to {{ cover.ends_on|day }}{% if cover.note %}. {{ cover.note }}{% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="empty">Nobody yet. Set it up before you travel so nothing waits for you.</p>{% endif %}
     </section>
-    <section class="card">
-      <h2>You are covering for</h2>
-      {% for cover in providing %}
-      <p><strong>{{ lookups.person(cover.absent_id).name }}</strong> until {{ cover.ends_on|day }}</p>
-      {% else %}<p class="muted">Nobody right now.</p>{% endfor %}
+    <section class="sheet">
+      <div class="sheet-head"><h2>You're covering for</h2></div>
+      {% if providing %}
+      <ul class="rows">
+        {% for cover in providing %}
+        <li class="row"><span class="title">{{ lookups.person(cover.absent_id).name }}</span><span class="sub end">until {{ cover.ends_on|day }}</span></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="empty">Nobody right now.</p>{% endif %}
     </section>
   </div>
 </div>

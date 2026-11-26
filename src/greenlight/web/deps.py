@@ -26,7 +26,12 @@ def render(request: Request, template: str, status_code: int = 200, **context):
     return TEMPLATES.TemplateResponse(
         request,
         template,
-        {"csrf": csrf_token(request), "container": container_of(request), **context},
+        {
+            "csrf": csrf_token(request),
+            "container": container_of(request),
+            "status_code": status_code,
+            **context,
+        },
         status_code=status_code,
     )
 
@@ -57,4 +62,5 @@ def _when(moment: datetime | None) -> str:
 
 TEMPLATES.env.filters["usd"] = _usd
 TEMPLATES.env.filters["when"] = _when
+TEMPLATES.env.filters["sentence"] = lambda text: text[:1].upper() + text[1:]
 TEMPLATES.env.filters["day"] = lambda value: f"{value:%d %b %Y}" if value else ""

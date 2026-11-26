@@ -1,126 +1,164 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import status_pill %}
+{% from "partials/macros.html" import status_text, signal %}
 {% from "partials/history.html" import history_line with context %}
+{% from "partials/icons.html" import icon %}
 {% set r = view.request %}
 {% set people = view.lookups %}
+{% set requester = people.person(r.requester_id) %}
 {% block title %}{{ r.reference }}{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div>
-    <p class="muted small">{{ r.reference }}{% if r.revision > 1 %} · revision {{ r.revision }}{% endif %}</p>
-    <h1>{{ r.title }}</h1>
-    <p>{{ status_pill(r) }}</p>
-  </div>
-  {% if view.can_revise %}<a class="button" href="/requests/{{ r.reference }}/edit">Change</a>{% endif %}
-</div>
+<a class="back" href="/requests">{{ icon("back") }}Requests</a>
 
-<div class="detail-grid">
-    <section class="card area-facts">
-      <dl class="facts">
-        <dt>Amount</dt>
-        <dd class="num">
-          <strong>{{ r.unit_price }}</strong>{% if r.is_recurring %} {{ r.billing_period }} for {{ r.term_months }} months{% endif %}
-          {% if r.is_recurring or r.currency != "USD" %}<br><span class="muted small">Total {{ r.total }}{% if r.currency != "USD" %} ≈ {{ r.total_usd|usd }} at {{ "%.5g"|format(r.usd_rate) }}{% endif %}</span>{% endif %}
-        </dd>
-        <dt>Supplier</dt><dd>{{ r.supplier }}</dd>
-        <dt>Raised by</dt><dd>{{ people.person(r.requester_id).name }} · {{ r.submitted_at|when }}</dd>
-        <dt>Category</dt><dd>{{ people.categories[r.category_id].name }}</dd>
-        {% if r.tag_id %}<dt>Tagged to</dt><dd>{{ people.tags[r.tag_id].label }}</dd>{% endif %}
-        <dt>Why</dt><dd>{{ r.justification }}</dd>
-        <dt>Quote</dt>
-        <dd>
-          {% for quote in r.quotes %}<a href="/requests/{{ r.reference }}/quotes/{{ quote.id }}">{{ quote.filename }}</a>{% if not loop.last %}<br>{% endif %}{% else %}None. {{ r.no_quote_reason }}{% endfor %}
-        </dd>
-        {% if r.is_confidential %}<dt>Visibility</dt><dd>Confidential</dd>{% endif %}
-      </dl>
+<header class="request-hero">
+  <p class="ref">{{ r.reference }}{% if r.revision > 1 %}, version {{ r.revision }}{% endif %}</p>
+  <h1>{{ r.title }}</h1>
+  <div class="figure">
+    {% if r.currency != "USD" %}<span class="ccy">{{ r.currency }}</span>{% endif %}
+    <span class="value">{% if r.currency == "USD" %}{{ r.total_usd|usd }}{% else %}{{ "{:,.0f}".format(r.total.amount) }}{% endif %}</span>
+    {% if r.is_recurring or r.currency != "USD" %}
+    <span class="aside">
+      {%- if r.is_recurring %}{{ r.unit_price }} {{ r.billing_period }} for {{ r.term_months }} months. {% endif -%}
+      {%- if r.currency != "USD" %}About {{ r.total_usd|usd }} at {{ "%.5g"|format(r.usd_rate) }} to the dollar.{% endif -%}
+    </span>
+    {% endif %}
+  </div>
+  <div class="hero-status">{{ signal(r, user) }}{{ status_text(r) }}</div>
+</header>
+
+<div class="request-layout">
+  <div class="side">
+    <section class="sheet route" aria-labelledby="route-heading">
+      <div class="sheet-head"><h2 id="route-heading">Approvals</h2></div>
+      <div class="body">
+        <ol class="track">
+          {% for step in r.current_steps %}
+          {% set approver = people.person(step.approver_id) %}
+          {% set mine = step.status == "pending" and step.approver_id == user.id %}
+          <li class="{{ step.status }}">
+            <span class="light {{ step.status }}{% if mine %} your-turn{% endif %}" aria-hidden="true"></span>
+            <span class="name">{{ "You" if step.approver_id == user.id else approver.name }}</span>
+            <span class="what">
+              {{ step.stage_label|sentence }},
+              {% if step.status == "approved" %}approved {{ step.decided_at|when }}
+              {% elif step.status == "rejected" %}sent back {{ step.decided_at|when }}
+              {% elif step.status == "pending" %}{{ "your turn" if mine else "deciding now" }}
+              {% elif step.status == "waiting" %}next in line
+              {% else %}not needed any more{% endif %}
+            </span>
+            {% if step.decided_on_behalf %}<span class="what">Decided by {{ people.person(step.decided_by_id).name }}, covering</span>{% endif %}
+            {% if step.comment %}<span class="note">{{ step.comment }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </div>
     </section>
 
-    {% if r.status == "approved" %}
-    <section class="card area-payments">
-      <h2>Payments</h2>
-      <p class="num">Approved {{ r.approved_total_usd|usd }} · paid {{ r.paid_usd|usd }} · left {{ r.outstanding_usd|usd }}</p>
+    {% if view.can_decide %}
+    <div class="decision" aria-label="Your decision">
+      {% if view.covering_for %}<p class="covering">You're covering for {{ view.covering_for.name }}.</p>{% endif %}
+      <button class="danger" type="button" data-open="reject-sheet">Send back</button>
+      <form method="post" action="/requests/{{ r.reference }}/approve">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="primary block" type="submit" data-busy="Approving…">Approve</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <section class="sheet facts-sheet" aria-labelledby="facts-heading">
+    <div class="sheet-head"><h2 id="facts-heading">The request</h2>{% if view.can_revise %}<a class="small" href="/requests/{{ r.reference }}/edit">Change it</a>{% endif %}</div>
+    <div class="body">
+      <dl class="facts">
+        <dt>Why</dt><dd>{{ r.justification }}</dd>
+        <dt>Supplier</dt><dd>{{ r.supplier }}</dd>
+        <dt>Asked by</dt><dd>{{ requester.name }}<br><span class="muted small">{{ r.submitted_at|when }}</span></dd>
+        <dt>Category</dt><dd>{{ people.categories[r.category_id].name }}</dd>
+        {% if r.tag_id %}<dt>For</dt><dd>{{ people.tags[r.tag_id].label }}</dd>{% endif %}
+        <dt>Quote</dt>
+        <dd>
+          {% for quote in r.quotes %}<a href="/requests/{{ r.reference }}/quotes/{{ quote.id }}">{{ quote.filename }}</a>{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">No quote:</span> {{ r.no_quote_reason }}{% endfor %}
+        </dd>
+        {% if r.is_confidential %}<dt>Who sees it</dt><dd>Confidential, only the people approving it</dd>{% endif %}
+      </dl>
+    </div>
+  </section>
+
+  {% if r.status == "approved" %}
+  <section class="sheet payments-sheet" aria-labelledby="pay-heading">
+    <div class="sheet-head"><h2 id="pay-heading">Payment</h2></div>
+    <div class="body">
+      <div class="money-line">
+        <div><span>Approved</span><strong>{{ r.approved_total_usd|usd }}</strong></div>
+        <div><span>Paid</span><strong>{{ r.paid_usd|usd }}</strong></div>
+        <div><span>Left</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
+      </div>
+      {% if r.approved_total_usd %}
+      <span class="bar" aria-hidden="true"><span class="paid" style="width: {{ [r.paid_usd / r.approved_total_usd * 100, 100]|min|round(1) }}%"></span></span>
+      {% endif %}
       {% if r.payments %}
-      <div class="table-scroll"><table>
-        <thead><tr><th>Invoice</th><th>Paid on</th><th class="num">Amount</th><th>By</th></tr></thead>
-        <tbody>
+      <ul class="rows flat">
         {% for payment in r.payments %}
-          <tr><td>{{ payment.invoice_reference }}</td><td>{{ payment.paid_on|day }}</td><td class="num">{{ payment.currency }} {{ "{:,.2f}".format(payment.amount) }}</td><td>{{ people.person(payment.recorded_by_id).first_name }}</td></tr>
+        <li class="row">
+          <span class="title">Invoice {{ payment.invoice_reference }}</span>
+          <span class="amount"><span class="ccy">{{ payment.currency }}</span>{{ "{:,.2f}".format(payment.amount) }}</span>
+          <span class="sub">Paid {{ payment.paid_on|day }}, recorded by {{ people.person(payment.recorded_by_id).first_name }}</span>
+        </li>
         {% endfor %}
-        </tbody>
-      </table></div>
+      </ul>
       {% endif %}
       {% if view.can_record_payment %}
-      <details class="spaced">
+      <details>
         <summary>Record a payment</summary>
-        <form class="spaced" method="post" action="/requests/{{ r.reference }}/payments">
+        <form method="post" action="/requests/{{ r.reference }}/payments" class="spaced-form">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <div class="field"><label for="invoice_reference">Invoice number</label><input id="invoice_reference" name="invoice_reference" required></div>
-          <div class="field-row">
-            <div class="field"><label for="pay-amount">Amount paid</label><input id="pay-amount" name="amount" inputmode="decimal" required></div>
-            <div class="field"><label for="pay-currency">Currency</label><input id="pay-currency" name="currency" value="{{ r.currency }}" maxlength="3" required></div>
+          <div class="field">
+            <label for="pay-amount">Amount paid</label>
+            <div class="amount-input"><input id="pay-amount" name="amount" inputmode="decimal" required placeholder="0.00"><input aria-label="Currency" name="currency" value="{{ r.currency }}" maxlength="3" required></div>
           </div>
           <div class="field"><label for="paid_on">Paid on</label><input id="paid_on" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
-          <label class="check"><input type="checkbox" name="confirm_over_approval" value="yes"> This payment takes us above the approved amount, and I want to go ahead</label>
-          <button class="primary" type="submit">Record payment</button>
+          <label class="check field"><input type="checkbox" name="confirm_over_approval" value="yes"><span>If this takes us over the approved amount, I've checked it and want to go ahead</span></label>
+          <button class="primary block form-foot" type="submit" data-busy="Recording…">Record payment</button>
         </form>
       </details>
       {% endif %}
-    </section>
-    {% endif %}
+    </div>
+  </section>
+  {% endif %}
 
-    <section class="card area-history">
-      <h2>History</h2>
-      <ol class="timeline">
+  <section class="sheet history-sheet" aria-labelledby="history-heading">
+    <div class="sheet-head"><h2 id="history-heading">What happened</h2></div>
+    <div class="body">
+      <ol class="history">
         {% for entry in view.history if entry.action not in ("route_set",) %}
-        <li class="{{ 'approved' if entry.action in ('approved', 'fully_approved', 'submitted') else 'rejected' if entry.action == 'rejected' else '' }}">{{ history_line(entry, people) }}</li>
+        <li class="{{ 'approved' if entry.action in ('approved', 'fully_approved', 'submitted', 'payment_recorded') else 'rejected' if entry.action == 'rejected' else '' }}">{{ history_line(entry, people) }}</li>
         {% endfor %}
       </ol>
-    </section>
+    </div>
+  </section>
 
-  <aside class="stack area-approvals">
-    <section class="card">
-      <h2>Approvals</h2>
-      <ol class="timeline">
-        {% for step in r.current_steps %}
-        <li class="{{ step.status }}">
-          <div class="who-line">{{ people.person(step.approver_id).name }}</div>
-          <div class="small muted stage">{{ step.stage_label }} · {{ step.status|capitalize }}{% if step.decided_at %} {{ step.decided_at|when }}{% endif %}</div>
-          {% if step.decided_on_behalf %}<div class="small">Decided by {{ people.person(step.decided_by_id).name }}, covering</div>{% endif %}
-          {% if step.comment %}<div class="comment">{{ step.comment }}</div>{% endif %}
-        </li>
-        {% endfor %}
-      </ol>
-    </section>
-
-    {% if view.can_withdraw %}
-    <form method="post" action="/requests/{{ r.reference }}/withdraw">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <button class="link small" type="submit">Withdraw this request</button>
-    </form>
-    {% endif %}
-  </aside>
+  {% if view.can_withdraw %}
+  <form class="withdraw" method="post" action="/requests/{{ r.reference }}/withdraw">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="link small" type="submit">Withdraw this request</button>
+  </form>
+  {% endif %}
 </div>
 
 {% if view.can_decide %}
-<div class="decision">
-  <section class="card" aria-label="Your decision">
-    {% if view.covering_for %}<p class="small">You are covering for {{ view.covering_for.name }}.</p>{% endif %}
-    <div class="decision-buttons">
-      <form method="post" action="/requests/{{ r.reference }}/approve">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="primary block" type="submit">Approve</button>
-      </form>
-      <details class="reject">
-        <summary class="button block danger">Not approved</summary>
-        <form method="post" action="/requests/{{ r.reference }}/reject">
-          <input type="hidden" name="csrf" value="{{ csrf }}">
-          <label for="reason">Tell {{ people.person(r.requester_id).first_name }} why, so they know what to change</label>
-          <textarea id="reason" name="reason" required></textarea>
-          <button class="block danger" type="submit">Send back</button>
-        </form>
-      </details>
+<dialog class="sheet-dialog" id="reject-sheet" aria-labelledby="reject-heading">
+  <div class="grabber"></div>
+  <form method="post" action="/requests/{{ r.reference }}/reject">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <h2 id="reject-heading">Send it back to {{ requester.first_name }}</h2>
+    <p>Say what would get it approved, like a second quote or a lower price. {{ requester.first_name }} sees this straight away.</p>
+    <label class="visually-hidden" for="reason">Your reason</label>
+    <textarea id="reason" name="reason" required placeholder="For example: please get a second quote from Katanga Rentals"></textarea>
+    <div class="buttons">
+      <button type="button" class="quiet" data-close>Cancel</button>
+      <button class="danger solid" type="submit" data-busy="Sending…">Send back</button>
     </div>
-  </section>
-</div>
+  </form>
+</dialog>
 {% endif %}
 {% endblock %}

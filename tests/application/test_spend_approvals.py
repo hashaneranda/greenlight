@@ -172,9 +172,9 @@ def test_invoice_is_matched_to_its_approval(company, uow, clock):
     approvals.approve(company.priya.id, acme)
     approvals.approve(company.priya.id, other)
 
-    _, matches = approvals.read_invoice(
+    matches = approvals.read_invoice(
         company.tom.id, Upload("inv.pdf", "application/pdf", b"%PDF")
-    )
+    ).matches
 
     assert matches[0].request.reference == acme
     assert "Supplier matches" in matches[0].reasons

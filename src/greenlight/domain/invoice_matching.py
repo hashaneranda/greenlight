@@ -1,3 +1,4 @@
+import enum
 import re
 from dataclasses import dataclass, field
 from datetime import date
@@ -27,10 +28,17 @@ class Invoice:
     invoice_date: date | None = None
     purchase_reference: str = ""
     lines: tuple[InvoiceLine, ...] = field(default_factory=tuple)
+    unclear_fields: tuple[str, ...] = ()
 
     @property
     def total_money(self) -> Money:
         return Money(self.total, self.currency)
+
+
+class MatchStrength(enum.StrEnum):
+    STRONG = "strong"
+    LIKELY = "likely"
+    POSSIBLE = "possible"
 
 
 @dataclass(frozen=True)
@@ -40,6 +48,27 @@ class InvoiceMatch:
     invoice_usd: Decimal
     reasons: list[str]
     warnings: list[str]
+
+    @property
+    def strength(self) -> MatchStrength:
+        if self.score >= 0.95:
+            return MatchStrength.STRONG
+        if self.score >= 0.7:
+            return MatchStrength.LIKELY
+        return MatchStrength.POSSIBLE
+
+
+@dataclass(frozen=True)
+class InvoiceCheck:
+    """What finance needs to know about one invoice before paying it."""
+
+    invoice: Invoice
+    matches: list[InvoiceMatch]
+    awaiting_approval: list[SpendRequest]
+
+    @property
+    def has_approval(self) -> bool:
+        return bool(self.matches)
 
 
 def normalise_supplier(name: str) -> str:
@@ -111,3 +140,15 @@ def rank_matches(
 
     matches.sort(key=lambda match: match.score, reverse=True)
     return matches[:limit]
+
+
+def check_invoice(
+    invoice: Invoice, candidates: list[SpendRequest], usd_rate: Decimal
+) -> InvoiceCheck:
+    awaiting = [
+        request
+        for request in candidates
+        if request.status == RequestStatus.PENDING
+        and _supplier_similarity(invoice.supplier, request.supplier) >= 0.8
+    ]
+    return InvoiceCheck(invoice, rank_matches(invoice, candidates, usd_rate), awaiting)

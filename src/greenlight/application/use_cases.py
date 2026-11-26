@@ -12,7 +12,7 @@ from greenlight.application.ports import Clock, FileStorage, InvoiceReader, Unit
 from greenlight.domain.catalog import Tag
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import InvalidRequest, NotPermitted
-from greenlight.domain.invoice_matching import Invoice, InvoiceMatch, rank_matches
+from greenlight.domain.invoice_matching import InvoiceCheck, check_invoice
 from greenlight.domain.money import Money
 from greenlight.domain.spend_request import Quote, RequestStatus, SpendDetails, SpendRequest
 
@@ -137,7 +137,7 @@ class SpendApprovals:
             event_handlers.handle(uow, request, now)
             uow.commit()
 
-    def read_invoice(self, actor_id: UUID, upload: Upload) -> tuple[Invoice, list[InvoiceMatch]]:
+    def read_invoice(self, actor_id: UUID, upload: Upload) -> InvoiceCheck:
         if self._invoice_reader is None:
             raise InvalidRequest("Invoice reading is not switched on.")
         self._check_upload(upload)
@@ -148,11 +148,11 @@ class SpendApprovals:
         invoice = self._invoice_reader.read(upload.content, upload.content_type)
 
         with self._unit_of_work() as uow:
-            matches = rank_matches(
-                invoice,
-                uow.requests.with_status(RequestStatus.APPROVED),
-                usd_rate(uow, invoice.currency),
-            )
+            candidates = [
+                *uow.requests.with_status(RequestStatus.APPROVED),
+                *uow.requests.with_status(RequestStatus.PENDING),
+            ]
+            check = check_invoice(invoice, candidates, usd_rate(uow, invoice.currency))
             event_handlers.audit(
                 uow,
                 "invoice_read",
@@ -161,10 +161,10 @@ class SpendApprovals:
                 supplier=invoice.supplier,
                 invoice_number=invoice.invoice_number,
                 total=str(invoice.total_money),
-                suggested=[match.request.reference for match in matches],
+                suggested=[match.request.reference for match in check.matches],
             )
             uow.commit()
-            return invoice, matches
+            return check
 
     def arrange_cover(
         self,
