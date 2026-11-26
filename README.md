@@ -1,6 +1,12 @@
 # Greenlight
 
+[![CI](https://github.com/hashaneranda/greenlight/actions/workflows/ci.yml/badge.svg)](https://github.com/hashaneranda/greenlight/actions/workflows/ci.yml)
+
 Spend approval for Orvane Group. Anyone raises a request before they spend, the right people approve it on their phone, and finance can see what has been approved and what has been paid.
+
+**Try it:** https://greenlight-aey3.onrender.com
+
+The sign-in page walks through it in three steps: raise a request as Grace, approve it as Nadia, then pay it as Tom. Anyone else in the demo organisation is under "Or pick anyone at Orvane". The demo runs on a free tier, so the first visit after a quiet spell can take up to a minute to wake up.
 
 ## What it does
 
@@ -24,6 +30,29 @@ Spend approval for Orvane Group. Anyone raises a request before they spend, the 
 - **Audit log**: append-only and hash-chained, so editing any past entry is detectable. The log page verifies the chain.
 - **Notifications** by email or Teams, plus daily reminders for approvals left waiting.
 
+## How the AI is used
+
+AI does the reading and the remembering, and people make every decision.
+
+| Where | What it does | What it never does |
+| --- | --- | --- |
+| Quote reading | Fills in the request from a PDF or photo and marks fields it was unsure of | Send the request. The requester checks it first |
+| Invoice reading | Reads the invoice and suggests which approval it matches | Record a payment. Finance confirms it |
+| Learning | Files requests the way the supplier was filed before, shows precedent and unusual amounts, warns about past send-back reasons | Use an LLM. It's statistics on past decisions, so it costs nothing and is explainable |
+| Rule suggestions | Suggests a higher COO limit where the COO approves everything just over it | Change a rule. Only the COO can accept, and it's audited |
+
+Confidential quotes are never sent to a model, and nothing is learned from confidential requests.
+
+The model sits behind one port (`DocumentModel`), so the provider is a setting: Groq by default, OpenAI as a fallback. Prompts and schemas live in `infrastructure/ai/document_readers.py`, and each provider is a small adapter. Groq takes no files, so PDFs go as their text, or as page images when they are scans.
+
+Keeping it cheap:
+
+- PDFs with text are sent as text, which costs far fewer tokens than images
+- A document that was already read is answered from memory, so it's never paid for twice
+- Answers are capped, the schema is sent compactly, and very long PDFs keep their first and last pages
+- Each person gets 30 reads an hour, and every read logs the tokens it used
+- Document text is treated as data, so instructions hidden in a quote are ignored
+
 ## Design
 
 Domain-driven, with the dependency rule pointing inwards:
@@ -45,7 +74,8 @@ Patterns, and where to find them:
 | Aggregate | `domain/spend_request.py` | Every rule about a request (who may decide, what a change does to an approval) lives on `SpendRequest`, so the UI and the commands can't disagree |
 | Policy / strategy | `domain/approval_policy.py` | Routing is data-driven (thresholds per category) and the org chart is injected through `ApproverDirectory` |
 | Domain events | `domain/events.py`, `application/event_handlers.py` | One place turns events into audit entries and notifications |
-| Ports and adapters | `application/ports.py` | Storage, invoice reading, clock and persistence can be swapped. Tests use in-memory fakes |
+| Ports and adapters | `application/ports.py`, `infrastructure/ai` | Storage, the AI provider, clock and persistence can be swapped. Tests use in-memory fakes |
+| Decorator | `infrastructure/ai/remembered_readings.py` | Adds caching to any AI provider without either knowing about the other |
 | Repository + unit of work | `infrastructure/persistence` | One transaction per use case, and the request row is locked while a decision is made |
 | CQRS-lite | `application/use_cases.py` vs `application/queries.py` | Commands change state through the aggregate. Reads build view models |
 | Composition root | `web/container.py` | The only place that knows which adapters are wired in |
