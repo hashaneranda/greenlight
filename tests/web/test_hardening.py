@@ -75,3 +75,8 @@ def test_names_cannot_inject_markdown_into_teams():
     assert _escape_markdown("[click](https://evil.example)") == (
         "\\[click\\]\\(https://evil\\.example\\)"
     )
+
+
+def test_a_hosted_demo_needs_a_real_database():
+    with pytest.raises(ValidationError, match="DATABASE_URL"):
+        Settings(base_url="https://greenlight.onrender.com", secret_key="x" * 40)
