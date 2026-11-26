@@ -1,9 +1,12 @@
-import base64
+"""Turn invoices and quotes into structured data with whichever language model is configured.
+
+The prompts and schemas live here; a provider only has to fill a schema from a document.
+"""
+
 from datetime import date
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, Protocol
 
-from openai import OpenAI, OpenAIError
 from pydantic import BaseModel, Field
 
 from greenlight.domain.errors import InvalidRequest
@@ -37,12 +40,22 @@ List in unclear_fields any of supplier, title, currency, amount or billing_perio
 could not read with certainty."""
 
 
+class ReadFailed(Exception):
+    """The model could not be reached, or gave back nothing that fits the schema."""
+
+
+class DocumentModel(Protocol):
+    def fill[T: BaseModel](
+        self, content: bytes, content_type: str, instructions: str, schema: type[T]
+    ) -> T: ...
+
+
 class _Line(BaseModel):
     description: str
     amount: Decimal
 
 
-class _Invoice(BaseModel):
+class InvoiceFields(BaseModel):
     supplier: str
     invoice_number: str
     currency: str = Field(pattern=r"^[A-Z]{3}$")
@@ -53,7 +66,7 @@ class _Invoice(BaseModel):
     unclear_fields: list[str]
 
 
-class _Quote(BaseModel):
+class QuoteFields(BaseModel):
     supplier: str
     title: str
     currency: str = Field(pattern=r"^[A-Z]{3}$")
@@ -64,34 +77,30 @@ class _Quote(BaseModel):
     unclear_fields: list[str]
 
 
-class _OpenAIDocumentReader:
-    def __init__(self, api_key: str, model: str):
-        self._client = OpenAI(api_key=api_key, timeout=60, max_retries=2)
+def _fill[T: BaseModel](
+    model: DocumentModel,
+    content: bytes,
+    content_type: str,
+    instructions: str,
+    schema: type[T],
+    kind: str,
+) -> T:
+    try:
+        return model.fill(content, content_type, instructions, schema)
+    except ReadFailed as error:
+        raise InvalidRequest(
+            f"The {kind} could not be read. Try again or fill it in by hand."
+        ) from error
+
+
+class AIInvoiceReader:
+    def __init__(self, model: DocumentModel):
         self._model = model
 
-    def _parse[T: BaseModel](
-        self, content: bytes, content_type: str, instructions: str, schema: type[T], kind: str
-    ) -> T:
-        try:
-            response = self._client.responses.parse(
-                model=self._model,
-                instructions=instructions,
-                input=[{"role": "user", "content": [_document_part(content, content_type)]}],
-                text_format=schema,
-                temperature=0,
-            )
-        except OpenAIError as error:
-            raise InvalidRequest(
-                f"The {kind} could not be read. Try again or fill it in by hand."
-            ) from error
-        if response.output_parsed is None:
-            raise InvalidRequest(f"Nothing could be read from that {kind}.")
-        return response.output_parsed
-
-
-class OpenAIInvoiceReader(_OpenAIDocumentReader):
     def read(self, content: bytes, content_type: str) -> Invoice:
-        parsed = self._parse(content, content_type, INVOICE_INSTRUCTIONS, _Invoice, "invoice")
+        parsed = _fill(
+            self._model, content, content_type, INVOICE_INSTRUCTIONS, InvoiceFields, "invoice"
+        )
         if parsed.total <= 0:
             raise InvalidRequest("No total could be found on that invoice.")
         return Invoice(
@@ -106,10 +115,13 @@ class OpenAIInvoiceReader(_OpenAIDocumentReader):
         )
 
 
-class OpenAIQuoteReader(_OpenAIDocumentReader):
+class AIQuoteReader:
+    def __init__(self, model: DocumentModel):
+        self._model = model
+
     def read(self, content: bytes, content_type: str, categories: list[str]) -> QuoteReading:
         instructions = QUOTE_INSTRUCTIONS.format(categories="; ".join(categories))
-        parsed = self._parse(content, content_type, instructions, _Quote, "quote")
+        parsed = _fill(self._model, content, content_type, instructions, QuoteFields, "quote")
         if parsed.amount <= 0:
             raise InvalidRequest("No price could be found on that quote.")
         recurring = parsed.billing_period != "none"
@@ -123,11 +135,3 @@ class OpenAIQuoteReader(_OpenAIDocumentReader):
             category_name=parsed.category.strip(),
             unclear_fields=tuple(parsed.unclear_fields),
         )
-
-
-def _document_part(content: bytes, content_type: str) -> dict:
-    encoded = base64.b64encode(content).decode()
-    data_url = f"data:{content_type};base64,{encoded}"
-    if content_type == "application/pdf":
-        return {"type": "input_file", "filename": "document.pdf", "file_data": data_url}
-    return {"type": "input_image", "image_url": data_url}

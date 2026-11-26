@@ -32,7 +32,7 @@ Domain-driven, with the dependency rule pointing inwards:
 src/greenlight/
   domain/          Pure Python. SpendRequest aggregate, ApprovalPolicy, Cover, visibility, invoice matching
   application/     Use cases (SpendApprovals), read models (SpendQueries), ports, audit chain, event handlers
-  infrastructure/  SQLAlchemy imperative mappings, repositories, unit of work, OpenAI reader, SMTP/Teams, seed data
+  infrastructure/  SQLAlchemy imperative mappings, repositories, unit of work, AI document readers (Groq or OpenAI), SMTP/Teams, seed data
   web/             FastAPI routes, server-rendered templates, sign-in, CSRF and security headers
 ```
 
@@ -85,9 +85,10 @@ The demo runs on Render's free tier (`render.yaml`) with a free Neon Postgres da
 | `SIGN_IN` | `demo` or `entra` |
 | `DEMO_PASSCODE` | Optional. When set, the demo persona picker asks for it |
 | `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET` | Microsoft sign-in |
-| `OPENAI_API_KEY` | Turns on invoice reading |
+| `GROQ_API_KEY` | Turns on quote and invoice reading with Groq (`GROQ_MODEL`, default `qwen/qwen3.8-27b`) |
+| `OPENAI_API_KEY` | Used instead when no Groq key is set (`OPENAI_MODEL`) |
 | `SMTP_*`, `TEAMS_WEBHOOK_URL` | Notification delivery |
 | `CRON_TOKEN` | Protects `/jobs/reminders` and `/jobs/deliver` |
-| `INVOICE_READS_PER_HOUR` | Per-person limit on LLM invoice reads (default 30) |
+| `AI_READS_PER_HOUR` | Per-person limit on AI document reads (default 30) |
 
 Anywhere other than localhost, Greenlight refuses to start without a `SECRET_KEY` of at least 32 characters. In production it also refuses demo sign-in, plain http, and Entra without a tenant id. Microsoft accounts are matched by email on first sign-in and by account id after that, and only the Orvane tenant is accepted. Teams posts carry a link only, so nothing about a request lands in a shared channel.

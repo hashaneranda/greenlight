@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     entra_client_id: str = ""
     entra_client_secret: SecretStr = SecretStr("")
 
+    groq_api_key: SecretStr = SecretStr("")
+    groq_model: str = "qwen/qwen3.8-27b"
     openai_api_key: SecretStr = SecretStr("")
     openai_model: str = "gpt-4.1-mini"
 
