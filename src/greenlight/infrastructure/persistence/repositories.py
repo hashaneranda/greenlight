@@ -93,7 +93,10 @@ class SqlPeople:
         return [person for person in self.active() if person.has_role(role)]
 
     def add(self, employee: Employee) -> None:
+        # A flush sends updates before inserts, so a colleague changed later in this
+        # transaction to report to the new person would otherwise point at nobody.
         self._session.add(employee)
+        self._session.flush()
 
     def departments(self) -> list[Department]:
         return list(self._session.scalars(select(Department)))

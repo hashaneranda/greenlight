@@ -103,6 +103,13 @@ def check_approvers_remain(everyone: Iterable[Employee], without: Employee) -> N
             )
 
 
+def pass_reports_up(leaver: Employee, everyone: Iterable[Employee]) -> list[Employee]:
+    reports = [someone for someone in everyone if someone.manager_id == leaver.id]
+    for report in reports:
+        report.manager_id = leaver.manager_id
+    return reports
+
+
 @dataclass(eq=False)
 class Department:
     name: str
