@@ -9,6 +9,20 @@
 **Tech stack:** Python 3.12, FastAPI, Jinja, SQLAlchemy 2 (imperative mapping), Alembic, pytest, ruff, Groq via the OpenAI SDK, pypdf, pypdfium2, Pillow, plain CSS and JS (no build step), Playwright for screenshots.
 
 **Conventions every task follows:**
+- This is an assessed take-home. Every change must show the best engineering practice, not just work:
+  - respect the dependency rule: the domain stays free of framework imports; rules live on aggregates and domain services, never in routes or templates
+  - reuse before adding: extend existing ports, macros, filters and helpers (`event_handlers.audit`, `active_person`, `render`, `flash`, the row and route-light macros) instead of duplicating them
+  - name the patterns you use (repository, unit of work, strategy, decorator, ports and adapters) and keep each class to one responsibility
+  - small functions, typed signatures, no dead code, no speculative options
+  - tests first (TDD), at the lowest layer that can prove the behaviour
+- Branches use a type prefix, one per phase, each created from the previous phase's branch so the PRs stack and merge in order:
+  - `docs/first-version-upgrade-plan` (this design and plan)
+  - `fix/review-card-and-precedent` (Tasks 1–2)
+  - `feat/ai-evaluation` (Tasks 3–7)
+  - `feat/admin-screens` (Tasks 8–11)
+  - `feat/notification-inbox` (Tasks 12–13)
+  - `feat/bold-signal-ui` (Tasks 14–19)
+  - `chore/delivery` (Tasks 20–22)
 - Test names are sentences (`test_a_leaver_with_open_approvals_must_hand_them_over`), like the existing suite.
 - User-facing text is short, plain, second person. Errors say what to do.
 - Run commands from the repo root with the venv active. Gate before each commit:
@@ -504,7 +518,7 @@ Commit: "Make every screen work by keyboard and on small phones".
 
 ### Task 22: Ship and verify live
 
-1. Push the branch and open a PR. Wait for CI to pass.
+1. Push each phase branch and open its PR against the branch before it (the first against `main`). Wait for CI to pass on each.
 2. After the user merges, Render auto-deploys. On the live site:
    - sign in as Grace, read a sample quote, submit
    - as Nadia, see the bell, approve
