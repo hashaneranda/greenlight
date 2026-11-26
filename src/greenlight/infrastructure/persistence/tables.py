@@ -133,6 +133,7 @@ exchange_rates = Table(
     Column("currency", String(3), primary_key=True),
     Column("usd_per_unit", Numeric(18, 8), nullable=False),
     Column("updated_at", moment(), nullable=False),
+    Column("updated_by_id", Uuid, ForeignKey("employees.id")),
 )
 
 tags = Table(
@@ -260,6 +261,8 @@ notifications = Table(
     Column("delivered_at", moment()),
     Column("delivery_error", String(500), nullable=False, default=""),
     Column("attempts", Integer, nullable=False, default=0),
+    Column("read_at", moment()),
+    Column("channel", String(40), nullable=False, default="", server_default=""),
 )
 
 stored_files = Table(
