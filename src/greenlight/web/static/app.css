@@ -559,13 +559,14 @@ td a { font-weight: 700; }
 
 .decision {
   position: sticky; bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + var(--s-3)); z-index: 25;
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3);
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-3);
   margin: var(--s-2) 0 var(--s-6); padding: var(--s-3);
   border-radius: calc(var(--r-card) + 4px); background: var(--ink);
 }
 .decision .covering { grid-column: 1 / -1; padding: 2px var(--s-1) 0; color: var(--on-ink-muted); font-size: var(--step--1); }
 .decision form { margin: 0; }
-.decision button:not(.primary) { background: #ffffff1f; color: var(--on-ink); }
+.decision button { white-space: nowrap; }
+.decision button:not(.primary) { background: color-mix(in srgb, var(--on-ink) 12%, transparent); color: var(--on-ink); }
 
 .withdraw { margin: 0 0 var(--s-6); }
 
@@ -590,7 +591,7 @@ td a { font-weight: 700; }
 .learned .sheet-head { border-bottom: 0; padding-bottom: 0; }
 .learned .sheet-head h2 { display: flex; align-items: center; gap: var(--s-2); font-size: var(--step-1); }
 .learned .sheet-head svg { width: 18px; height: 18px; }
-.learned .reasons a { color: inherit; font-weight: 600; }
+.learned .reasons a { color: inherit; font-weight: 600; white-space: nowrap; }
 
 .advice { display: grid; gap: var(--s-2); padding: var(--s-3) var(--s-4); border-radius: var(--r-control); background: var(--sunken); font-size: var(--step--1); }
 .advice[hidden] { display: none; }
@@ -641,58 +642,47 @@ td a { font-weight: 700; }
 
 /* Review, one request at a time */
 
-body.focus { padding-bottom: var(--s-6); }
+body.focus { padding-bottom: 0; }
+.review { max-width: 560px; margin: 0 auto; }
 .review-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--s-3); }
 .review-top .back { margin: 0; }
 
 .review-card {
-  position: relative; max-width: 560px; margin: 0 auto; padding: var(--s-6) var(--s-5) var(--s-5);
+  position: relative; padding: var(--s-5);
   border-radius: calc(var(--r-card) + 4px); background: var(--sunken);
   touch-action: pan-y; user-select: none;
-  animation: card-in .3s var(--ease-out);
+  transition: transform .2s var(--ease-out), opacity .2s var(--ease-out);
+  animation: card-in .24s var(--ease-out);
 }
-@keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(.98); } }
-.review-card header { display: flex; gap: var(--s-3); align-items: center; margin-bottom: var(--s-5); }
-.review-card header strong { display: block; }
-.review-card header .muted { font-size: var(--step--1); }
-.review-card h1 { margin: 0 0 var(--s-2); font-size: var(--step-3); line-height: 1; }
-.review-card .figure { margin: var(--s-1) 0; }
-.review-card .why { margin: var(--s-4) 0; font-size: var(--step-1); line-height: 1.5; }
+@keyframes card-in { from { opacity: 0; transform: translateY(12px); } }
+.review-card .figure { margin-bottom: var(--s-3); }
+.review-card .figure .aside { margin-top: var(--s-1); }
+.review-card h1 { font-size: var(--step-3); line-height: 1.05; text-transform: none; }
+.review-card .supplier { margin-top: var(--s-2); }
+.review-card .learned { margin: var(--s-4) 0 0; padding: var(--s-4); border-radius: var(--r-control); background: var(--canvas); }
+.review-card .learned .body { padding-top: var(--s-2); }
+.review-card .why { margin: var(--s-5) 0 var(--s-4); font-size: var(--step-1); }
 .review-card .pills > * { background: var(--canvas); }
-.review-card .learned { margin: var(--s-4) 0 var(--s-3); padding: var(--s-4); border-radius: var(--r-control); background: var(--canvas); }
-.review-card.leaving-yes { transition: transform .28s ease-out, opacity .28s ease-out; transform: translateX(120%) rotate(10deg); opacity: 0; }
-.review-card.leaving-no { transition: transform .28s ease-out, opacity .28s ease-out; transform: translateX(-120%) rotate(-10deg); opacity: 0; }
+.review-card .asker { display: flex; align-items: center; gap: var(--s-3); margin: var(--s-5) 0 var(--s-4); padding-top: var(--s-4); border-top: 1px solid var(--line); font-size: var(--step--1); line-height: 1.35; }
+.review-card .asker span span { display: block; }
+.review-card.leaving { transform: translateX(110%) rotate(6deg); opacity: 0; }
 .review-card::after {
-  content: attr(data-verdict); position: absolute; top: var(--s-6); right: var(--s-5);
+  content: attr(data-verdict); position: absolute; top: var(--s-5); right: var(--s-5);
   padding: 4px var(--s-3); border: 3px solid currentColor; border-radius: var(--r-control);
   font: 900 var(--step-1)/1.3 var(--font-display); text-transform: uppercase; opacity: var(--verdict-opacity, 0);
 }
 .review-card[data-verdict="Approve"]::after { color: var(--go); }
 .review-card[data-verdict="Send back"]::after { right: auto; left: var(--s-5); color: var(--stop); }
 
-.review-actions {
-  position: sticky; bottom: calc(env(safe-area-inset-bottom) + var(--s-3)); z-index: 20;
-  display: flex; justify-content: center; gap: var(--s-10); margin: var(--s-6) 0 var(--s-2); padding-bottom: var(--s-6);
+.review .decision {
+  position: sticky; bottom: calc(env(safe-area-inset-bottom) + var(--s-3));
+  grid-template-columns: auto minmax(0, 1fr); margin: var(--s-3) 0;
 }
-.review-actions form { margin: 0; }
-.round {
-  position: relative; overflow: visible;
-  display: grid; place-items: center; width: 76px; height: 76px; padding: 0; border-radius: 50%;
-  background: var(--canvas); box-shadow: 0 0 0 2px var(--ink);
-  transition: transform .12s var(--ease-out);
-}
-.round:hover { background: var(--canvas); }
-.round:active { transform: scale(.92); }
-.round svg { width: 32px; height: 32px; stroke-width: 2.6; }
-.round.no svg { color: var(--stop); }
-.round.yes, .round.yes:hover { background: var(--signal); box-shadow: 0 0 0 2px var(--signal); }
-.round.yes svg { color: var(--ink); }
-.round span {
-  position: absolute; top: calc(100% + 8px); left: 50%; translate: -50% 0; white-space: nowrap;
-  font-size: var(--step--2); font-weight: 700; color: var(--ink);
-}
-.swipe-hint { text-align: center; }
+.swipe-hint { margin-top: var(--s-3); text-align: center; }
 @media (hover: hover) { .swipe-hint { display: none; } }
+
+.reason-starts { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-3); }
+.reason-starts button { min-height: 40px; padding: 0 var(--s-4); font-size: var(--step--1); }
 
 .all-clear { padding: var(--s-16) var(--s-5); text-align: center; }
 .all-clear .light.big { display: block; width: 72px; height: 72px; margin: 0 auto var(--s-6); }

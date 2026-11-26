@@ -91,3 +91,42 @@
   <p class="empty">No spend yet.</p>
   {% endif %}
 {%- endmacro %}
+
+{% macro decision_bar(reference, csrf, covering_for=None, next="") -%}
+  <div class="decision" id="decision" aria-label="Your decision">
+    {% if covering_for %}<p class="covering">You're covering for {{ covering_for.name }}.</p>{% endif %}
+    <button class="danger" type="button" data-open="reject-sheet">Send back</button>
+    <form method="post" action="/requests/{{ reference }}/approve">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <button class="primary block" type="submit" data-busy="Approving…">Approve</button>
+    </form>
+  </div>
+{%- endmacro %}
+
+{% macro send_back_sheet(reference, requester, csrf, next="") -%}
+  <dialog class="sheet-dialog" id="reject-sheet" aria-labelledby="reject-heading">
+    <div class="grabber"></div>
+    <form method="post" action="/requests/{{ reference }}/reject">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <h2 id="reject-heading">Send it back to {{ requester.first_name }}</h2>
+      <p>Say what would get it approved. {{ requester.first_name }} sees this straight away.</p>
+      <div class="reason-starts" role="group" aria-label="Start from a common reason">
+        {% for label, reason in [
+          ("Get a second quote", "Please get a second quote."),
+          ("Lower the price", "Please bring the price down, or say why it can't be lower."),
+          ("Say why it's needed now", "Please explain why this can't wait."),
+        ] %}
+        <button type="button" data-reason="{{ reason }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      <label class="visually-hidden" for="reason">Your reason</label>
+      <textarea id="reason" name="reason" required placeholder="Or write your own reason"></textarea>
+      <div class="buttons">
+        <button type="button" class="quiet" data-close>Cancel</button>
+        <button class="danger solid" type="submit" data-busy="Sending…">Send back</button>
+      </div>
+    </form>
+  </dialog>
+{%- endmacro %}
