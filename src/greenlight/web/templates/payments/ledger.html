@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
+{% from "partials/macros.html" import payment_rows %}
 {% block title %}Payments{% endblock %}
 {% block content %}
 {% set samples = [
@@ -65,19 +66,7 @@
 <section class="sheet" aria-labelledby="ledger-heading">
   <div class="sheet-head"><h2 id="ledger-heading">Approved spend</h2></div>
   {% if approved %}
-  <ul class="rows">
-    {% for r in approved %}
-    <li>
-      <a class="row" href="/requests/{{ r.reference }}">
-        <span class="title">{{ r.title }}</span>
-        <span class="amount">{{ r.outstanding_usd|usd if r.outstanding_usd else "Paid" }}</span>
-        <span class="sub">{{ r.supplier }}, {{ r.reference }}</span>
-        <span class="sub end">{{ "left of " ~ (r.approved_total_usd|usd) if r.outstanding_usd else "in full" }}</span>
-        <span class="bar" aria-hidden="true"><span class="paid" style="width: {{ [r.paid_usd / r.approved_total_usd * 100, 100]|min|round(1) if r.approved_total_usd else 0 }}%"></span></span>
-      </a>
-    </li>
-    {% endfor %}
-  </ul>
+  {{ payment_rows(approved) }}
   {% else %}
   <p class="empty"><strong>Nothing approved yet</strong>Approved requests show up here, ready to pay.</p>
   {% endif %}

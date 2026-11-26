@@ -50,6 +50,22 @@
   {% endif %}
 {%- endmacro %}
 
+{% macro payment_rows(requests) -%}
+  <ul class="rows">
+    {% for r in requests %}
+    <li>
+      <a class="row" href="/requests/{{ r.reference }}">
+        <span class="title">{{ r.title }}</span>
+        <span class="amount">{{ r.outstanding_usd|usd if r.outstanding_usd else "Paid" }}</span>
+        <span class="sub">{{ r.supplier }}, {{ r.reference }}</span>
+        <span class="sub end">{% if not r.outstanding_usd %}in full{% elif r.paid_usd %}left of {{ r.approved_total_usd|usd }}{% else %}nothing paid yet{% endif %}</span>
+        {% if r.paid_usd and r.outstanding_usd %}<span class="bar" aria-hidden="true"><span class="paid" style="width: {{ (r.paid_usd / r.approved_total_usd * 100)|round(1) }}%"></span></span>{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+{%- endmacro %}
+
 {% macro breakdown_rows(groups, show_budget=False) -%}
   {% if groups %}
   <ul class="rows">
