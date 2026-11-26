@@ -32,7 +32,7 @@
   <span class="light rejected" aria-hidden="true"></span>
   <div>
     <strong>{{ people.person(r.sent_back_step.decided_by_id).first_name }} sent it back</strong>
-    <p>"{{ r.sent_back_reason }}"</p>
+    <p>“{{ r.sent_back_reason }}”</p>
     {% if view.can_revise %}<a class="button primary" href="/requests/{{ r.reference }}/edit">Change and send again</a>{% endif %}
   </div>
 </div>

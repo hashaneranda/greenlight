@@ -55,7 +55,7 @@
 
     <main class="page">
       {% if flash %}
-      <div class="toast {{ flash.kind }}" role="status"><span class="light" aria-hidden="true"></span>{{ flash.message }}</div>
+      <div class="toast {{ flash.kind }}" role="status" aria-live="polite"><span class="light" aria-hidden="true"></span>{{ flash.message }}</div>
       {% endif %}
       {% block content %}{% endblock %}
     </main>
