@@ -21,8 +21,10 @@ def container_of(request: Request):
 
 
 def render(request: Request, template: str, status_code: int = 200, **context):
-    context.setdefault("user", getattr(request.state, "user", None))
+    user = context.setdefault("user", getattr(request.state, "user", None))
     context.setdefault("flash", request.session.pop("flash", None))
+    if user:
+        context.setdefault("unread", container_of(request).queries.unread_count(user.id))
     return TEMPLATES.TemplateResponse(
         request,
         template,
