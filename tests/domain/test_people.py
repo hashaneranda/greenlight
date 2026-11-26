@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from greenlight.domain.errors import InvalidRequest
@@ -67,3 +69,16 @@ def test_admins_manage_people_and_finance_manages_reference_data(company):
     assert not company.tom.can_manage_people
     assert company.tom.can_manage_reference_data
     assert not company.ceo.can_manage_reference_data
+
+
+def test_a_loop_already_in_the_data_does_not_hang_the_check(company):
+    company.priya.manager_id = company.sam.id  # sam -> priya -> sam
+
+    check_reporting_line(company.ana, company.sam.id, company.org.people.values())
+
+
+def test_the_same_person_loaded_again_is_still_the_person_leaving(company):
+    loaded_again = replace(company.nadia)
+
+    with pytest.raises(InvalidRequest, match="COO"):
+        check_approvers_remain([*company.org.people.values(), loaded_again], without=company.nadia)
