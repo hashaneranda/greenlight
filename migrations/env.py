@@ -6,7 +6,7 @@ from greenlight.infrastructure.persistence.unit_of_work import make_engine
 
 
 def run_migrations() -> None:
-    engine = make_engine(get_settings().database_url)
+    engine = make_engine(get_settings().migration_database_url)
     with engine.connect() as connection:
         context.configure(
             connection=connection,

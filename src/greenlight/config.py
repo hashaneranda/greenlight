@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     environment: Literal["local", "demo", "production"] = "local"
     database_url: str = "sqlite:///./greenlight.db"
+    database_url_unpooled: str = ""
     secret_key: SecretStr = SecretStr(DEFAULT_SECRET)
     base_url: str = "http://localhost:8000"
 
@@ -52,6 +53,11 @@ class Settings(BaseSettings):
         if not self.base_url.startswith("https://"):
             raise ValueError("BASE_URL must be https in production.")
         return self
+
+    @property
+    def migration_database_url(self) -> str:
+        """Migrations bypass the connection pooler when a direct URL is given."""
+        return self.database_url_unpooled or self.database_url
 
     @property
     def is_local(self) -> bool:

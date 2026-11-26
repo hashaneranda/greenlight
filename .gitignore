@@ -7,3 +7,6 @@ uploads/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+.neon
+node_modules/
+.env.local

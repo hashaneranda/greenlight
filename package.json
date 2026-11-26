@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "Neon CLI config for the Greenlight database (neon.ts)",
+  "dependencies": {
+    "@neon/config": "^1.14.8",
+    "@neon/env": "^2.1.11"
+  }
+}

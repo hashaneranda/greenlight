@@ -12,7 +12,15 @@ def make_engine(database_url: str) -> Engine:
             database_url = "postgresql+psycopg://" + database_url.removeprefix(prefix)
 
     if not database_url.startswith("sqlite"):
-        return create_engine(database_url, pool_pre_ping=True, pool_size=5, max_overflow=5)
+        return create_engine(
+            database_url,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=5,
+            # A transaction-mode pooler such as PgBouncer may hand each statement a different
+            # backend, so server-side prepared statements are left off.
+            connect_args={"prepare_threshold": None},
+        )
 
     engine = create_engine(database_url, connect_args={"check_same_thread": False})
 
