@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f2f4f1">
+  <meta name="theme-color" content="#ffffff">
   <title>{% block title %}Greenlight{% endblock %} - Greenlight</title>
   <link rel="preload" href="{{ url_for('static', path='fonts/archivo.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
@@ -20,11 +20,26 @@
   {% set active = path == href if exact else (path.startswith(href) and not (href == "/requests" and path == "/requests/new")) %}
   <a href="{{ href }}" {% if active %}aria-current="page"{% endif %}>{{ icon(glyph) }}<span>{{ label }}</span>{{ new_count(count) }}</a>
 {%- endmacro %}
-{% macro switch_person() -%}
+{% macro switch_person(kind="link small") -%}
   <form method="post" action="/sign-out">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="link small" type="submit">{% if container.settings.sign_in == "demo" %}Switch person{% else %}Sign out{% endif %}</button>
+    <button class="{{ kind }}" type="submit">{% if container.settings.sign_in == "demo" %}Switch person{% else %}Sign out{% endif %}</button>
   </form>
+{%- endmacro %}
+
+{% macro role_links() -%}
+  <p class="nav-group">Approvals</p>
+  {{ nav_link("/cover", "Cover", "cover") }}
+  {% if user.sees_all_spend %}{{ nav_link("/rules", "Approval rules", "rules") }}{% endif %}
+  {% if user.can_read_audit_log or user.can_manage_people or user.can_manage_reference_data %}
+  <p class="nav-group">Manage</p>
+  {% if user.can_manage_people %}{{ nav_link("/manage/people", "People", "people") }}{% endif %}
+  {% if user.can_manage_reference_data %}
+  {{ nav_link("/manage/categories", "Categories", "categories") }}
+  {{ nav_link("/manage/rates", "Exchange rates", "rates") }}
+  {% endif %}
+  {% if user.can_read_audit_log %}{{ nav_link("/audit", "Audit log", "audit") }}{% endif %}
+  {% endif %}
 {%- endmacro %}
 
 <div class="shell {{ 'signed-in' if user else 'signed-out' }}">
@@ -38,14 +53,7 @@
       {{ nav_link("/requests", "Requests", "requests") }}
       {{ nav_link("/insights", "Insights", "insights") }}
       {% if user.sees_all_spend %}{{ nav_link("/payments", "Payments", "payments") }}{% endif %}
-      {% if user.sees_all_spend %}{{ nav_link("/rules", "Approval rules", "rules") }}{% endif %}
-      {{ nav_link("/cover", "Cover", "cover") }}
-      {% if user.can_read_audit_log %}{{ nav_link("/audit", "Audit log", "audit") }}{% endif %}
-      {% if user.can_manage_people %}{{ nav_link("/manage/people", "People", "people") }}{% endif %}
-      {% if user.can_manage_reference_data %}
-      {{ nav_link("/manage/categories", "Categories", "categories") }}
-      {{ nav_link("/manage/rates", "Exchange rates", "rates") }}
-      {% endif %}
+      {{ role_links() }}
     </nav>
     <div class="me">
       <span class="avatar">{{ user.initials }}</span>
@@ -59,9 +67,8 @@
       <a class="brand" href="/">{{ brand_mark() }}Greenlight</a>
       {% if user %}
       <div class="me">
-        {{ switch_person() }}
         <a class="bell" href="/inbox" {% if path == "/inbox" %}aria-current="page"{% endif %}>{{ icon("bell") }}<span class="visually-hidden">Inbox</span>{{ new_count(unread) }}</a>
-        <span class="avatar" title="{{ user.name }}">{{ user.initials }}</span>
+        <button class="avatar" type="button" data-open="menu-sheet" aria-haspopup="dialog"><span aria-hidden="true">{{ user.initials }}</span><span class="visually-hidden">Menu for {{ user.name }}</span></button>
       </div>
       {% endif %}
     </header>
@@ -83,6 +90,22 @@
   {{ nav_link("/insights", "Insights", "insights") }}
   {% if user.sees_all_spend %}{{ nav_link("/payments", "Payments", "payments") }}{% else %}{{ nav_link("/cover", "Cover", "cover") }}{% endif %}
 </nav>
+{% endif %}
+{% if user %}
+<dialog class="sheet-dialog menu" id="menu-sheet" aria-labelledby="menu-heading">
+  <div class="grabber"></div>
+  <div class="menu-head">
+    <span class="avatar">{{ user.initials }}</span>
+    <div><h2 id="menu-heading">{{ user.name }}</h2><p>{{ user.job_title }}</p></div>
+  </div>
+  <nav class="menu-links" aria-label="More">
+    {{ role_links() }}
+  </nav>
+  <div class="buttons">
+    <button type="button" class="quiet" data-close>Close</button>
+    {{ switch_person("block") }}
+  </div>
+</dialog>
 {% endif %}
 </body>
 </html>
