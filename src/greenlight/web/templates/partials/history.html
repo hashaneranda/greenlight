@@ -21,6 +21,7 @@
   "category_added": "Added a category",
   "category_updated": "Changed a category",
   "exchange_rate_set": "Set an exchange rate",
+  "approval_rule_changed": "Changed an approval rule",
 } %}
 {% macro history_line(entry, lookups) -%}
   {% set actor = lookups.person(entry.actor_id) %}
@@ -44,6 +45,7 @@
   {% if entry.action == "category_added" %}<div class="small muted">{{ entry.details.name }}</div>{% endif %}
   {% if entry.action == "category_updated" %}<div class="small muted">{{ entry.details.category }}</div>{% endif %}
   {% if entry.action == "exchange_rate_set" %}<div class="small muted">{{ entry.details.currency }} {% if entry.details.rate_from %}{{ entry.details.rate_from|rate }} → {% endif %}{{ entry.details.rate_to|rate }}</div>{% endif %}
+  {% if entry.action == "approval_rule_changed" %}<div class="small muted">{{ entry.details.category }}, COO limit {{ entry.details.coo_limit_from|usd }} → {{ entry.details.coo_limit_to|usd }}{% if entry.details.suggested_by_greenlight %}, suggested by Greenlight{% endif %}</div>{% endif %}
   {% if entry.details.get("notes") %}<div class="small muted">{{ entry.details.notes|join(" ") }}</div>{% endif %}
   <div class="when">{{ entry.occurred_at|when }}</div>
 {%- endmacro %}

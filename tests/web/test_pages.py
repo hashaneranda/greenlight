@@ -146,6 +146,8 @@ def test_the_coo_sees_and_can_change_approval_rules(client):
     )
 
     assert "$7,500" in client.get("/rules").text
+    sign_in_as(client, "Tom Becker")
+    assert "changed an approval rule" in client.get("/audit").text
 
 
 def test_staff_cannot_see_approval_rules(client):
