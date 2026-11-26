@@ -11,12 +11,14 @@ def home(request: Request, user: CurrentUser):
     queries = container_of(request).queries
     suggestions = queries.rules(user.id).suggestions if user.sees_all_spend else []
     board = queries.dashboard(user.id)
+    ledger = queries.payments_ledger(user.id) if user.can_record_payments else []
     return render(
         request,
         "home.html",
         suggestions=suggestions,
         waiting=queries.waiting_for(user.id),
         mine=queries.my_requests(user.id)[:6],
+        to_pay=[r for r in ledger if r.outstanding_usd],
         board=board,
         show_picture=user.sees_all_spend or any(r.requester_id != user.id for r in board.recent),
         lookups=queries.lookups(),
