@@ -52,19 +52,27 @@ class NotificationSender:
         notification.attempts += 1
         body = f"{notification.body}\n\nOpen in Greenlight: {link}"
         teams_webhook = self._settings.teams_webhook_url.get_secret_value()
-        try:
-            if self._settings.smtp_host:
-                self._email(notification.subject, body, recipient)
-            if teams_webhook:
-                self._post_to_teams(teams_webhook, notification.subject, body, recipient)
-            if not self._settings.smtp_host and not teams_webhook:
-                log.info("Notification to %s: %s", recipient.email, notification.subject)
-        except (OSError, smtplib.SMTPException, httpx.HTTPError) as error:
-            log.warning("Notification %s failed: %s", notification.id, error)
-            notification.delivery_error = str(error)[:500]
-            return
-        notification.delivered_at = SystemClock().now()
-        notification.delivery_error = ""
+        channels = []
+        if self._settings.smtp_host:
+            channels.append(lambda: self._email(notification.subject, body, recipient))
+        if teams_webhook:
+            channels.append(
+                lambda: self._post_to_teams(teams_webhook, notification.subject, body, recipient)
+            )
+        if not channels:
+            log.info("Notification to %s: %s", recipient.email, notification.subject)
+
+        errors = []
+        for send in channels:
+            try:
+                send()
+            except (OSError, smtplib.SMTPException, httpx.HTTPError) as error:
+                log.warning("Notification %s failed on one channel: %s", notification.id, error)
+                errors.append(str(error))
+
+        notification.delivery_error = "; ".join(errors)[:500]
+        if len(errors) < len(channels) or not channels:
+            notification.delivered_at = SystemClock().now()
 
     def _email(self, subject: str, body: str, recipient: Employee) -> None:
         settings = self._settings

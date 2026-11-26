@@ -51,7 +51,8 @@ def _supplier_similarity(left: str, right: str) -> float:
     a, b = normalise_supplier(left), normalise_supplier(right)
     if not a or not b:
         return 0.0
-    if a in b or b in a:
+    shorter, longer = sorted((a, b), key=len)
+    if len(shorter) >= 4 and f" {shorter} " in f" {longer} ":
         return 1.0
     return SequenceMatcher(None, a, b).ratio()
 

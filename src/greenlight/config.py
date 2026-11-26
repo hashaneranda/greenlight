@@ -1,8 +1,10 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_SECRET = "local-only-not-secret"
 
 
 class Settings(BaseSettings):
@@ -10,7 +12,7 @@ class Settings(BaseSettings):
 
     environment: Literal["local", "demo", "production"] = "local"
     database_url: str = "sqlite:///./greenlight.db"
-    secret_key: SecretStr = SecretStr("local-only-not-secret")
+    secret_key: SecretStr = SecretStr(DEFAULT_SECRET)
     base_url: str = "http://localhost:8000"
 
     sign_in: Literal["demo", "entra"] = "demo"
@@ -31,6 +33,19 @@ class Settings(BaseSettings):
     cron_token: SecretStr = SecretStr("")
     reminder_after_hours: int = 24
     max_upload_mb: int = 10
+
+    @model_validator(mode="after")
+    def _refuse_unsafe_production(self) -> "Settings":
+        if self.environment != "production":
+            return self
+        if self.sign_in == "demo":
+            raise ValueError("Demo sign-in cannot be used in production. Set SIGN_IN=entra.")
+        secret = self.secret_key.get_secret_value()
+        if secret == DEFAULT_SECRET or len(secret) < 32:
+            raise ValueError("Set SECRET_KEY to a random value of at least 32 characters.")
+        if not self.base_url.startswith("https://"):
+            raise ValueError("BASE_URL must be https in production.")
+        return self
 
     @property
     def secure_cookies(self) -> bool:

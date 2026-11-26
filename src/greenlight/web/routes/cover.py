@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 
 from greenlight.domain.errors import DomainError, InvalidRequest
 from greenlight.web.auth import CurrentUser
-from greenlight.web.deps import container_of, flash, render
+from greenlight.web.deps import container_of, flash, local_today, render
 from greenlight.web.security import verify_csrf
 
 router = APIRouter(prefix="/cover")
@@ -24,7 +24,7 @@ def cover_page(request: Request, user: CurrentUser):
         providing=providing,
         colleagues=colleagues,
         lookups=queries.lookups(),
-        today=date.today(),
+        today=local_today(),
     )
 
 

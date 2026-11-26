@@ -20,7 +20,7 @@ class InMemoryRequests:
     def get(self, request_id):
         return self.items.get(request_id)
 
-    def by_reference(self, reference):
+    def by_reference(self, reference, *, for_update=False):
         return next((r for r in self.items.values() if r.reference == reference), None)
 
     def next_reference(self):
