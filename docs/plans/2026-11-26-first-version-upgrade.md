@@ -125,7 +125,9 @@ Remove the separate "N earlier requests… the latest…" line when `supplier_us
 
 **Step 5:** Run the learning tests and the full suite → PASS. Commit: "Compare a request with the supplier's own history first".
 
-### Task 2: The review action bar never covers the card
+### Task 2: The review action bar never covers the card (closed, folded into Task 15)
+
+Measured on 2026-11-26: `.review-actions` is `position: sticky`, not fixed, so once scrolled to the bottom it never covers the card at 390×844, 360×640 or 1440×900. Padding the card (step 2 below) would only add an empty band. The real gap is the first load on a phone, where the bar sits over the end of a long card. Task 15 rebuilds this screen and owns that acceptance rule. The original steps are kept below for the record.
 
 **Files:**
 - Modify: `src/greenlight/web/static/app.css` (review page rules), `src/greenlight/web/templates/review.html`
@@ -457,7 +459,7 @@ One commit per screen; screenshot each at 390×844 and 1440×900 as the relevant
    - requester: "YOUR REQUESTS" with route lights
 
    No empty main column at any width.
-4. **Review**: the full-screen card and the fixed bar (keep Task 2's padding). Approve is a full-width signal pill. "Send back" opens a reason sheet with 3 common reasons from past send-backs plus free text. The card slides away on approve (transform/opacity, 220 ms, ease-out, skipped under reduced motion).
+4. **Review**: the full-screen card and the sticky action bar. Acceptance, measured by bounding boxes in Playwright: on first load at 390×844 and 360×640, the amount, the supplier and the first "Seen before" line are fully above the bar, and scrolled to the bottom nothing in the card intersects it. Put the decisive facts first and push detail down. Approve is a full-width signal pill. "Send back" opens a reason sheet with 3 common reasons from past send-backs plus free text. The card slides away on approve (transform/opacity, 220 ms, ease-out, skipped under reduced motion).
 5. **Request page**: amount display at the top, with the USD line under foreign amounts. The route as a vertical light line (who, stage, when, on behalf of), the quote, then history.
 6. **Lists** (`requests/list.html` and the shared row macro): title, supplier and reference on the left; amount (plus USD for foreign) and route lights on the right, next to the status label.
 
