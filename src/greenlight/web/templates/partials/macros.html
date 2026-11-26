@@ -30,13 +30,17 @@
     {% for item in requests %}
     {% set requester = lookups.person(item.requester_id) %}
     <li>
-      <a class="row" href="/requests/{{ item.reference }}">
-        <span class="title">{{ item.title }}</span>
-        <span class="amount">{{ amount(item) }}</span>
-        <span class="sub">{% if show_requester and requester %}{{ requester.name }}, {% endif %}{{ item.supplier }}</span>
-        <span class="end">{{ signal(item, viewer) }}</span>
-        <span class="sub">{{ status_text(item) }}</span>
-        <span class="sub end">{{ item.reference }}</span>
+      <a class="row request" href="/requests/{{ item.reference }}">
+        <span class="info">
+          <span class="title">{{ item.title }}</span>
+          <span class="sub">{{ item.supplier }}</span>
+          <span class="sub">{{ item.reference }}{% if show_requester and requester %}, {{ requester.name }}{% endif %}</span>
+        </span>
+        <span class="figures">
+          <span class="amount">{{ amount(item) }}</span>
+          {% if item.currency != "USD" %}<span class="usd">{{ item.total_usd|usd }}</span>{% endif %}
+          <span class="state">{{ status_text(item) }}{{ signal(item, viewer) }}</span>
+        </span>
       </a>
     </li>
     {% endfor %}
