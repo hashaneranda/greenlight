@@ -9,6 +9,15 @@ from greenlight.application.ports import AuditEntry, Clock, UnitOfWork
 from greenlight.domain.catalog import Category, Tag, TagKind
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import NotPermitted
+from greenlight.domain.learning import (
+    Filing,
+    LimitSuggestion,
+    Precedent,
+    learned_filing,
+    precedent_for,
+    send_back_lessons,
+    suggest_limits,
+)
 from greenlight.domain.people import Department, Employee
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 from greenlight.domain.visibility import can_view
@@ -39,6 +48,28 @@ class RequestView:
     can_withdraw: bool
     can_record_payment: bool
     covering_for: Employee | None
+    precedent: Precedent | None = None
+
+
+@dataclass
+class Advice:
+    filing: Filing | None
+    lessons: list[str]
+
+
+@dataclass
+class CooLimit:
+    category: Category
+    limit_usd: Decimal | None
+    is_default: bool
+
+
+@dataclass
+class RulesView:
+    default_limit_usd: Decimal | None
+    limits: list[CooLimit]
+    suggestions: list[LimitSuggestion]
+    can_change: bool
 
 
 @dataclass
@@ -177,6 +208,46 @@ class SpendQueries:
                 can_withdraw=request.can_be_withdrawn_by(viewer),
                 can_record_payment=request.can_be_paid_by(viewer),
                 covering_for=covering_for,
+                precedent=precedent_for(
+                    request, (r for r in uow.requests.all() if context.can_view(r))
+                ),
+            )
+
+    def advice(
+        self, viewer_id: UUID, supplier: str, category_id: UUID | None, has_quote: bool
+    ) -> Advice:
+        """Learned from requests anyone may see, so nothing confidential leaks into advice."""
+        with self._unit_of_work() as uow:
+            active_person(uow, viewer_id)
+            shared = [r for r in uow.requests.all() if not r.is_confidential]
+            filing = learned_filing(supplier, shared) if supplier.strip() else None
+            if filing and filing.tag_id:
+                tag = uow.catalog.tag(filing.tag_id)
+                if tag is None or not tag.is_active:
+                    filing = Filing(filing.category_id, None, filing.learned_from)
+            return Advice(filing, send_back_lessons(category_id, supplier, has_quote, shared))
+
+    def rules(self, viewer_id: UUID) -> RulesView:
+        with self._unit_of_work() as uow:
+            viewer = active_person(uow, viewer_id)
+            if not viewer.sees_all_spend:
+                raise NotPermitted("Approval rules are for finance and the COO.")
+            policy = uow.catalog.approval_policy()
+            categories = sorted(
+                (c for c in uow.catalog.categories() if c.is_active), key=lambda c: c.name
+            )
+            return RulesView(
+                default_limit_usd=policy.executive_threshold_usd,
+                limits=[
+                    CooLimit(
+                        c,
+                        policy.executive_threshold_for(c),
+                        c.id not in policy.category_thresholds_usd,
+                    )
+                    for c in categories
+                ],
+                suggestions=suggest_limits(policy, categories, uow.requests.all()),
+                can_change=viewer.can_change_rules,
             )
 
     def dashboard(self, viewer_id: UUID) -> Dashboard:

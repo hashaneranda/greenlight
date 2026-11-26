@@ -7,6 +7,7 @@
     <h1>Where the money goes</h1>
     <p>{{ board.scope }}. Everything in US dollars, at the rate on the day each request was raised.</p>
   </div>
+  {% if user.sees_all_spend %}<div class="actions"><a class="button" href="/rules">Approval rules</a></div>{% endif %}
 </div>
 
 <div class="totals">

@@ -46,6 +46,10 @@ class Employee:
         return bool(self.roles & {Role.FINANCE, Role.ADMIN})
 
     @property
+    def can_change_rules(self) -> bool:
+        return bool(self.roles & {Role.EXECUTIVE_APPROVER, Role.ADMIN})
+
+    @property
     def sees_all_spend(self) -> bool:
         return bool(self.roles & {Role.FINANCE, Role.EXECUTIVE_APPROVER, Role.ADMIN})
 

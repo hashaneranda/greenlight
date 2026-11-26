@@ -5,13 +5,15 @@ import pytest
 
 from greenlight.application import audit_chain
 from greenlight.application.queries import SpendQueries
-from greenlight.application.use_cases import SpendApprovals, Upload
+from greenlight.application.use_cases import KeptQuote, SpendApprovals, Upload
 from greenlight.domain.errors import InvalidRequest, NotPermitted
 from greenlight.domain.invoice_matching import Invoice
 from greenlight.domain.money import Money
-from greenlight.domain.spend_request import RequestStatus
+from greenlight.domain.quote_reading import QuoteReading
+from greenlight.domain.spend_request import BillingPeriod, RequestStatus
 from tests.application.fakes import (
     CannedInvoiceReader,
+    CannedQuoteReader,
     FakeUnitOfWork,
     FixedClock,
     InMemoryCatalog,
@@ -236,3 +238,88 @@ def test_staff_cannot_open_someone_elses_request(company, approvals, queries):
 
     with pytest.raises(NotPermitted):
         queries.request_view(company.ana.id, reference)
+
+
+def test_the_coo_can_raise_a_limit_and_it_applies_to_the_next_request(approvals, company, uow):
+    approvals.change_coo_limit(
+        company.nadia.id, company.general.id, Decimal("8000"), suggested=True
+    )
+    reference = approvals.submit(company.sam.id, details(company.general, "6000"), [PDF])
+
+    request = uow.requests.by_reference(reference)
+    assert [step.stages for step in request.current_steps] == [["line_manager"]]
+    assert "approval_rule_changed" in [entry.action for entry in uow.audit.all()]
+
+
+def test_only_the_coo_or_an_admin_can_change_approval_rules(approvals, company):
+    with pytest.raises(NotPermitted):
+        approvals.change_coo_limit(
+            company.tom.id, company.general.id, Decimal("1"), suggested=False
+        )
+
+
+def test_advice_learns_how_a_supplier_was_filed_before(approvals, queries, company):
+    approvals.submit(company.sam.id, details(company.software, "300", supplier="Figma Inc"), [PDF])
+
+    advice = queries.advice(company.ana.id, "Figma", None, has_quote=True)
+
+    assert advice.filing.category_id == company.software.id
+
+
+def test_advice_never_learns_from_confidential_requests(approvals, queries, company):
+    secret = details(company.software, "300", supplier="Figma Inc", is_confidential=True)
+    approvals.submit(company.sam.id, secret, [PDF])
+
+    assert queries.advice(company.ana.id, "Figma", None, has_quote=True).filing is None
+
+
+def test_a_read_quote_fills_the_request_and_is_attached_without_a_second_upload(
+    uow, clock, company
+):
+    reading = QuoteReading(
+        "Figma Inc",
+        "Design licences",
+        "USD",
+        Decimal("45"),
+        BillingPeriod.MONTHLY,
+        12,
+        "Software and subscriptions",
+    )
+    storage = MemoryStorage()
+    approvals = SpendApprovals(lambda: uow, storage, clock, quote_reader=CannedQuoteReader(reading))
+
+    draft = approvals.read_quote(company.sam.id, PDF)
+    kept = approvals.kept_upload(draft.kept)
+
+    assert draft.category_id == company.software.id
+    assert kept.content == PDF.content
+
+
+def test_filing_learned_from_the_same_supplier_beats_the_ai_guess(uow, clock, company):
+    reading = QuoteReading("Figma", "Design licences", "USD", Decimal("45"), category_name="Travel")
+    approvals = SpendApprovals(
+        lambda: uow, MemoryStorage(), clock, quote_reader=CannedQuoteReader(reading)
+    )
+    reference = approvals.submit(
+        company.sam.id, details(company.software, "300", supplier="Figma Inc"), [PDF]
+    )
+
+    draft = approvals.read_quote(company.ana.id, PDF)
+
+    assert draft.category_id == company.software.id
+    assert draft.filed_like == reference
+
+
+def test_a_kept_quote_must_be_one_already_stored(approvals):
+    with pytest.raises(InvalidRequest):
+        approvals.kept_upload(KeptQuote("0" * 64, "quote.pdf", "application/pdf"))
+
+
+def test_a_confidential_quote_is_kept_without_being_read(uow, clock, company):
+    reader = CannedQuoteReader(None)
+    approvals = SpendApprovals(lambda: uow, MemoryStorage(), clock, quote_reader=reader)
+
+    kept = approvals.keep_quote(company.sam.id, PDF)
+
+    assert approvals.kept_upload(kept).content == PDF.content
+    assert reader.reads == 0

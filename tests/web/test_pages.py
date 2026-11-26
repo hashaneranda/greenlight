@@ -137,3 +137,31 @@ def test_hosted_demo_can_ask_for_a_passcode(database_url):
         data={"csrf": csrf_from(page), "employee_id": str(nadia.id), "passcode": "orvane-demo"},
     )
     assert client.get("/", follow_redirects=False).status_code == 200
+
+
+def test_the_coo_sees_and_can_change_approval_rules(client):
+    sign_in_as(client, "Nadia Frost")
+    page = client.get("/rules").text
+    category_id = re.search(r'name="category_id" value="([0-9a-f-]+)"', page).group(1)
+
+    client.post(
+        "/rules/coo-limit",
+        data={"csrf": csrf_from(page), "category_id": category_id, "amount_usd": "7500"},
+    )
+
+    assert "$7,500" in client.get("/rules").text
+
+
+def test_staff_cannot_see_approval_rules(client):
+    sign_in_as(client, "Grace Mutombo")
+
+    assert client.get("/rules").status_code == 403
+
+
+def test_the_request_form_learns_how_a_supplier_was_filed(client):
+    sign_in_as(client, "Grace Mutombo")
+
+    advice = client.get("/requests/advice", params={"supplier": "Ledgerline"}).json()
+
+    assert advice["learned_from"].startswith("GL-")
+    assert advice["category_id"]

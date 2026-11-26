@@ -30,7 +30,7 @@ async def read_invoice(request: Request, user: CurrentUser):
     try:
         if not uploads:
             raise InvalidRequest("Choose an invoice to read.")
-        if not request.app.state.invoice_reads.allow(str(user.id)):
+        if not request.app.state.ai_reads.allow(str(user.id)):
             raise InvalidRequest("You have read a lot of invoices this hour. Try again later.")
         check = container.approvals.read_invoice(user.id, uploads[0])
     except DomainError as error:

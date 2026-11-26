@@ -54,9 +54,9 @@
     {% set scale = group.budget_usd if show_budget and group.budget_usd else total %}
     <li class="row">
       <span class="title">{{ group.label }}</span>
-      <span class="amount">{{ group.committed_usd|usd }}</span>
-      <span class="sub">{{ group.count }} request{{ "s" if group.count != 1 }}, {{ group.paid_usd|usd }} paid{% if group.pending_usd %}, {{ group.pending_usd|usd }} waiting{% endif %}</span>
-      <span class="sub end">{% if show_budget and group.budget_usd %}of {{ group.budget_usd|usd }}{% endif %}</span>
+      <span class="amount">{{ total|usd }}</span>
+      <span class="sub">{{ group.committed_usd|usd }} approved, {{ group.paid_usd|usd }} paid{% if group.pending_usd %}, {{ group.pending_usd|usd }} not approved yet{% endif %}</span>
+      <span class="sub end">{% if show_budget and group.budget_usd %}of {{ group.budget_usd|usd }} budget{% else %}{{ group.count }} request{{ "s" if group.count != 1 }}{% endif %}</span>
       {% if scale %}
       <span class="bar" aria-hidden="true">
         <span class="paid" style="width: {{ (group.paid_usd / scale * 100)|round(1) }}%"></span>

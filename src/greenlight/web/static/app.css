@@ -673,3 +673,46 @@ details { margin-top: 16px; }
   .your-turn { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--wait) 35%, transparent); }
   .toast { animation: none; }
 }
+
+.mini-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.mini-totals div { display: grid; gap: 4px; align-content: start; }
+.mini-totals span { color: var(--ink-2); font-size: .82rem; line-height: 1.25; }
+.mini-totals strong { font: 700 1.2rem/1.1 var(--display); }
+.picture .rows { border-top: 1px solid var(--line); }
+
+input[type="file"] { padding: 8px; min-height: 0; background: var(--sunken); border-style: dashed; cursor: pointer; }
+input[type="file"]::file-selector-button {
+  margin-right: 12px; padding: 9px 14px; border: 0; border-radius: 10px;
+  background: var(--surface); color: var(--ink); font: 650 .95rem/1 var(--text);
+  box-shadow: 0 0 0 1px var(--line); cursor: pointer;
+}
+
+.quote-reader { margin-bottom: 8px; }
+.or-divider { display: flex; align-items: center; gap: 12px; margin: 14px 4px; color: var(--ink-3); font-size: .9rem; }
+.or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+.notice.ai { display: flex; gap: 12px; align-items: flex-start; background: var(--surface); box-shadow: 0 0 0 1px var(--line); color: var(--ink); }
+.notice.ai svg { flex: none; width: 22px; height: 22px; color: var(--malachite); margin-top: 1px; }
+.notice.ai strong { display: block; }
+
+.advice { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--sunken); font-size: .92rem; }
+.advice p { margin: 0; padding-left: 22px; position: relative; }
+.advice p::before { content: ""; position: absolute; left: 4px; top: .55em; width: 9px; height: 9px; border-radius: 50%; }
+.advice .learned::before { background: var(--go); }
+.advice .lesson::before { background: var(--wait); }
+
+.learned .sheet-head h2 { display: flex; align-items: center; gap: 8px; }
+.learned .sheet-head svg { width: 18px; height: 18px; color: var(--malachite); }
+.learned .reasons a { color: inherit; font-weight: 650; }
+
+.suggestions { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 12px; }
+.suggestions li { padding: 14px 16px; border-radius: 16px; background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.suggestions p { margin: 0 0 8px; }
+.suggestions form { margin-top: 10px; }
+.inline-form { display: flex; gap: 8px; margin-top: 8px; }
+.inline-form input { min-height: 42px; width: 9rem; }
+.inline-form button { min-height: 42px; }
+.private-check { margin-top: 14px; font-size: .95rem; }
+.advice[hidden] { display: none; }
+.notice.ai { font-weight: 400; }
+.field-row { align-items: end; }

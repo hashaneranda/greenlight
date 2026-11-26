@@ -6,8 +6,8 @@ from greenlight.application.queries import SpendQueries
 from greenlight.application.sign_in import MicrosoftSignIn
 from greenlight.application.use_cases import SpendApprovals
 from greenlight.config import Settings
+from greenlight.infrastructure.ai.openai_readers import OpenAIInvoiceReader, OpenAIQuoteReader
 from greenlight.infrastructure.clock import SystemClock
-from greenlight.infrastructure.invoices.openai_reader import OpenAIInvoiceReader
 from greenlight.infrastructure.notifications.delivery import NotificationSender
 from greenlight.infrastructure.persistence.orm import start_mappers
 from greenlight.infrastructure.persistence.unit_of_work import SqlUnitOfWork, make_engine
@@ -24,7 +24,7 @@ class Container:
     microsoft_sign_in: MicrosoftSignIn
 
     @property
-    def invoice_reading_enabled(self) -> bool:
+    def ai_enabled(self) -> bool:
         return bool(self.settings.openai_api_key.get_secret_value())
 
 
@@ -38,7 +38,9 @@ def build_container(settings: Settings) -> Container:
         return SqlUnitOfWork(session_factory)
 
     api_key = settings.openai_api_key.get_secret_value()
-    invoice_reader = OpenAIInvoiceReader(api_key, settings.openai_model) if api_key else None
+    model = settings.openai_model
+    invoice_reader = OpenAIInvoiceReader(api_key, model) if api_key else None
+    quote_reader = OpenAIQuoteReader(api_key, model) if api_key else None
     return Container(
         settings=settings,
         session_factory=session_factory,
@@ -48,6 +50,7 @@ def build_container(settings: Settings) -> Container:
             clock,
             invoice_reader,
             max_upload_bytes=settings.max_upload_mb * 1024 * 1024,
+            quote_reader=quote_reader,
         ),
         queries=SpendQueries(unit_of_work, clock),
         notifications=NotificationSender(settings, session_factory),

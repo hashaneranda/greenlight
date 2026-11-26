@@ -24,7 +24,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     app = FastAPI(title="Greenlight", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.container = container or build_container(settings)
     app.state.oauth = OAuth()
-    app.state.invoice_reads = HourlyLimit(settings.invoice_reads_per_hour)
+    app.state.ai_reads = HourlyLimit(settings.ai_reads_per_hour)
     if settings.sign_in == "entra":
         auth.register_entra(
             app.state.oauth,

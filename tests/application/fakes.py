@@ -91,6 +91,9 @@ class InMemoryCatalog:
     def approval_policy(self):
         return self._policy
 
+    def set_executive_threshold(self, category_id, amount_usd):
+        self._policy.category_thresholds_usd[category_id] = amount_usd
+
     def usd_rate(self, currency):
         return self._rates.get(currency)
 
@@ -172,6 +175,8 @@ class MemoryStorage:
         self.files[key] = content
 
     def load(self, key):
+        if key not in self.files:
+            raise FileNotFoundError(key)
         return self.files[key]
 
 
@@ -189,3 +194,13 @@ class CannedInvoiceReader:
 
     def read(self, content, content_type):
         return self.invoice
+
+
+class CannedQuoteReader:
+    def __init__(self, reading):
+        self.reading = reading
+        self.reads = 0
+
+    def read(self, content, content_type, categories):
+        self.reads += 1
+        return self.reading
