@@ -48,7 +48,7 @@ if (requestForm) {
   };
 
   const ask = async () => {
-    const hasQuote = field("kept_quote") || field("quotes").files.length > 0;
+    const hasQuote = field("kept_quote") || field("quotes")?.files.length > 0;
     const params = new URLSearchParams({
       supplier: field("supplier").value,
       category_id: field("category_id").value,
@@ -73,7 +73,27 @@ if (requestForm) {
   };
   field("supplier").addEventListener("input", soon);
   field("category_id").addEventListener("change", soon);
-  field("quotes").addEventListener("change", soon);
+  field("quotes")?.addEventListener("change", soon);
+
+  const rateNotes = requestForm.querySelectorAll(".rate-note");
+  field("currency").addEventListener("change", (event) => {
+    for (const note of rateNotes) note.hidden = note.dataset.currency !== event.target.value;
+  });
+}
+
+for (const drop of document.querySelectorAll("[data-drop]")) {
+  const input = drop.querySelector("input[type=file]");
+  const fileName = drop.querySelector("[data-file-name]");
+  const hint = fileName.textContent;
+  input.addEventListener("change", () => {
+    const names = [...input.files].map((file) => file.name);
+    fileName.textContent = names.length ? names.join(", ") : hint;
+    drop.classList.toggle("chosen", names.length > 0);
+  });
+  input.addEventListener("dragenter", () => drop.classList.add("dragging"));
+  for (const type of ["dragleave", "drop"]) {
+    input.addEventListener(type, () => drop.classList.remove("dragging"));
+  }
 }
 
 const quoteReader = document.querySelector("form.quote-reader");
