@@ -528,6 +528,8 @@ class SpendRequest:
     def hand_over_approvals(
         self, from_person: Employee, to_person: Employee, *, actor: Employee, now: datetime
     ) -> None:
+        if to_person.id == from_person.id:
+            raise InvalidRequest(f"Choose someone other than {from_person.first_name}.")
         if to_person.id == self.requester_id:
             raise NotPermitted(
                 f"{to_person.first_name} raised {self.reference} and can't approve it."
