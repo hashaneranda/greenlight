@@ -1,4 +1,5 @@
 from typing import Annotated
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
@@ -33,11 +34,15 @@ def current_user(request: Request) -> Employee:
 CurrentUser = Annotated[Employee, Depends(current_user)]
 
 
+def is_local_path(url: str) -> bool:
+    return url.startswith("/") and not url.startswith(("//", "/\\")) and not urlsplit(url).netloc
+
+
 def _sign_in_as(request: Request, person: Employee) -> RedirectResponse:
     next_url = request.session.pop("next", "/")
     request.session.clear()
     request.session[SESSION_USER_KEY] = str(person.id)
-    return RedirectResponse(next_url if next_url.startswith("/") else "/", status_code=303)
+    return RedirectResponse(next_url if is_local_path(next_url) else "/", status_code=303)
 
 
 def _entra(request: Request):

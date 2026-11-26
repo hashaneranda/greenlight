@@ -200,7 +200,7 @@ class TestChangesAfterApproval:
 
         assert not needs_reapproval
         assert request.status == RequestStatus.APPROVED
-        assert request.approved_total_usd == Decimal("4000.00")
+        assert request.approved_total_usd == Decimal("3800.00")
 
     def test_higher_price_goes_back_for_approval_and_keeps_history(self, company):
         request = self.approved_request(company)
@@ -318,3 +318,35 @@ def test_requester_can_withdraw_before_payment(company):
 
     assert request.status == RequestStatus.WITHDRAWN
     assert request.current_steps[0].status == StepStatus.CANCELLED
+
+
+class TestSeparationOfDuties:
+    def test_covering_cannot_give_one_person_two_steps(self, company):
+        request = submitted(company, company.sam, company.general, "8000")
+        nadia_covers_priya = Cover.arrange(
+            arranged_by=company.priya,
+            absent=company.priya,
+            covering=company.nadia,
+            starts_on=TODAY,
+            ends_on=TODAY + timedelta(days=5),
+            today=TODAY,
+            existing=[],
+        )
+
+        assert not request.can_be_decided_by(company.nadia, TODAY, [nadia_covers_priya])
+
+
+class TestSupplierChange:
+    def test_new_supplier_needs_approving_again(self, company):
+        request = submitted(company, company.sam, company.general, "4000")
+        request.approve(company.priya, NOW)
+
+        needs_reapproval = request.revise(
+            company.sam,
+            details(company.general, "4000", supplier="Someone Else Ltd"),
+            Decimal("1"),
+            [],
+            "Original supplier ran out",
+        )
+
+        assert needs_reapproval

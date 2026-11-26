@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -10,6 +10,10 @@ from greenlight.web.security import csrf_token
 
 TEMPLATES = Jinja2Templates(directory=Path(__file__).parent / "templates")
 DISPLAY_TIMEZONE = ZoneInfo("Asia/Dubai")
+
+
+def local_today() -> date:
+    return datetime.now(DISPLAY_TIMEZONE).date()
 
 
 def container_of(request: Request):
@@ -43,7 +47,7 @@ def _when(moment: datetime | None) -> str:
     if moment is None:
         return ""
     local = moment.astimezone(DISPLAY_TIMEZONE)
-    days = (datetime.now(UTC).date() - local.date()).days
+    days = (local_today() - local.date()).days
     if days == 0:
         return f"Today {local:%H:%M}"
     if days == 1:

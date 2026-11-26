@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
 from greenlight.application import audit_chain
@@ -15,6 +15,8 @@ from greenlight.domain.people import Department, Employee, Role, Site
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 from greenlight.infrastructure.persistence import tables
 
+AUDIT_LOCK = 4_711_001
+
 
 class SqlSpendRequests:
     def __init__(self, session: Session):
@@ -26,10 +28,11 @@ class SqlSpendRequests:
     def get(self, request_id: UUID) -> SpendRequest | None:
         return self._session.get(SpendRequest, request_id)
 
-    def by_reference(self, reference: str) -> SpendRequest | None:
-        return self._session.scalars(
-            select(SpendRequest).where(tables.spend_requests.c.reference == reference)
-        ).first()
+    def by_reference(self, reference: str, *, for_update: bool = False) -> SpendRequest | None:
+        query = select(SpendRequest).where(tables.spend_requests.c.reference == reference)
+        if for_update:
+            query = query.with_for_update(of=tables.spend_requests)
+        return self._session.scalars(query).first()
 
     def next_reference(self) -> str:
         counter = tables.counters
@@ -176,14 +179,20 @@ class SqlAuditTrail:
         self._session = session
 
     def append(self, entry: AuditEntry) -> None:
+        self._serialise_writers()
         latest = self._session.execute(
             select(tables.audit_entries.c.hash)
             .order_by(tables.audit_entries.c.sequence.desc())
             .limit(1)
-            .with_for_update()
         ).scalar()
         self._session.add(audit_chain.seal(entry, latest))
         self._session.flush()
+
+    def _serialise_writers(self) -> None:
+        # Each entry hashes the previous one, so writers must take turns. The lock is
+        # held until the transaction ends. SQLite already allows only one writer.
+        if self._session.get_bind().dialect.name == "postgresql":
+            self._session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": AUDIT_LOCK})
 
     def for_request(self, request_id: UUID) -> list[AuditEntry]:
         return list(

@@ -295,21 +295,26 @@ class SpendRequest:
         self, actor: Employee, today: date, covers_held: Iterable[Cover] = ()
     ) -> bool:
         step = self.pending_step
-        if step is None or actor.id == self.requester_id:
+        if step is None or actor.id == self.requester_id or self._approved_by(actor):
             return False
         if actor.id == step.approver_id:
             return True
+        holds_another_step = any(
+            other.approver_id == actor.id for other in self.current_steps if other is not step
+        )
         covering = any(
             cover.covering_id == actor.id
             and cover.absent_id == step.approver_id
             and cover.is_active_on(today)
             for cover in covers_held
         )
-        already_approved_this_revision = any(
-            s.decided_by_id == actor.id and s.status == StepStatus.APPROVED
-            for s in self.current_steps
+        return covering and not holds_another_step
+
+    def _approved_by(self, actor: Employee) -> bool:
+        return any(
+            step.decided_by_id == actor.id and step.status == StepStatus.APPROVED
+            for step in self.current_steps
         )
-        return covering and not already_approved_this_revision
 
     def can_be_withdrawn_by(self, actor: Employee) -> bool:
         return actor.id == self.requester_id and self.is_live and not self.payments
@@ -411,6 +416,7 @@ class SpendRequest:
         before = self.snapshot()
         approved_total = self.approved_total_usd
         category_before = self.category_id
+        supplier_before = self.supplier
         for name, value in _detail_fields(details, usd_rate).items():
             setattr(self, name, value)
         self.quotes.extend(new_quotes)
@@ -419,6 +425,7 @@ class SpendRequest:
             self.status != RequestStatus.APPROVED
             or approved_total is None
             or self.category_id != category_before
+            or self.supplier.casefold() != supplier_before.casefold()
             or self.total_usd > approved_total
         )
         self._record(
@@ -438,6 +445,8 @@ class SpendRequest:
             self.status = RequestStatus.PENDING
             self.decided_at = None
             self.approved_total_usd = None
+        else:
+            self.approved_total_usd = self.total_usd
         return needs_reapproval
 
     def record_payment(

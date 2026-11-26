@@ -15,8 +15,10 @@ def active_person(uow: UnitOfWork, employee_id: UUID) -> Employee:
     return person
 
 
-def request_by_reference(uow: UnitOfWork, reference: str) -> SpendRequest:
-    request = uow.requests.by_reference(reference.upper())
+def request_by_reference(
+    uow: UnitOfWork, reference: str, *, for_update: bool = False
+) -> SpendRequest:
+    request = uow.requests.by_reference(reference.upper(), for_update=for_update)
     if request is None:
         raise NotFound(f"No request {reference}.")
     return request

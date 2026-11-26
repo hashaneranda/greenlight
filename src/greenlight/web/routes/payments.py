@@ -1,11 +1,11 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import RedirectResponse
 
 from greenlight.domain.errors import DomainError, InvalidRequest
 from greenlight.web.auth import CurrentUser
-from greenlight.web.deps import container_of, flash, render
+from greenlight.web.deps import container_of, flash, local_today, render
 from greenlight.web.routes.requests import _money, _uploads
 from greenlight.web.security import verify_csrf
 
@@ -40,15 +40,18 @@ async def read_invoice(request: Request, user: CurrentUser):
         invoice=invoice,
         matches=matches,
         lookups=container.queries.lookups(),
-        today=date.today(),
+        today=local_today(),
     )
 
 
 @router.post("/requests/{reference}/payments", dependencies=[Depends(verify_csrf)])
-async def record_payment(reference: str, request: Request, user: CurrentUser):
+async def record_payment(
+    reference: str, request: Request, background: BackgroundTasks, user: CurrentUser
+):
     form = await request.form()
+    background.add_task(container_of(request).notifications.deliver_pending)
     try:
-        paid_on = date.fromisoformat(form.get("paid_on") or date.today().isoformat())
+        paid_on = date.fromisoformat(form.get("paid_on") or local_today().isoformat())
         container_of(request).approvals.record_payment(
             user.id,
             reference,

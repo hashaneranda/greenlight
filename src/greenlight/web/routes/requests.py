@@ -1,5 +1,5 @@
-from datetime import date
 from decimal import Decimal, InvalidOperation
+from urllib.parse import quote as quote_url
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
@@ -11,7 +11,7 @@ from greenlight.domain.errors import DomainError, InvalidRequest
 from greenlight.domain.money import Money
 from greenlight.domain.spend_request import BillingPeriod, RequestStatus, SpendDetails
 from greenlight.web.auth import CurrentUser
-from greenlight.web.deps import container_of, flash, render
+from greenlight.web.deps import container_of, flash, local_today, render
 from greenlight.web.security import verify_csrf
 
 router = APIRouter(prefix="/requests")
@@ -32,6 +32,12 @@ def _money(raw: str, currency: str) -> Money:
         return Money(amount, currency)
     except ValueError as error:
         raise InvalidRequest("Choose a currency.") from error
+
+
+def _inline_disposition(filename: str) -> str:
+    printable = "".join(ch for ch in filename if ch.isprintable() and ch not in '"\\;')
+    ascii_name = printable.encode("ascii", "ignore").decode() or "quote"
+    return f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote_url(printable)}"
 
 
 def _optional_uuid(raw) -> UUID | None:
@@ -134,7 +140,7 @@ async def submit_request(request: Request, background: BackgroundTasks, user: Cu
 @router.get("/{reference}")
 def show_request(reference: str, request: Request, user: CurrentUser):
     view = container_of(request).queries.request_view(user.id, reference)
-    return render(request, "requests/detail.html", view=view, today=date.today())
+    return render(request, "requests/detail.html", view=view, today=local_today())
 
 
 @router.post("/{reference}/approve", dependencies=[Depends(verify_csrf)])
@@ -248,12 +254,11 @@ def download_quote(reference: str, quote_id: UUID, request: Request, user: Curre
     quote = next((q for q in view.request.quotes if q.id == quote_id), None)
     if quote is None:
         return Response(status_code=404)
-    safe_name = quote.filename.replace('"', "")
     return Response(
         container.approvals.quote_content(quote),
         media_type=quote.content_type,
         headers={
-            "Content-Disposition": f'inline; filename="{safe_name}"',
+            "Content-Disposition": _inline_disposition(quote.filename),
             "Content-Security-Policy": "sandbox",
             "Cache-Control": "private, no-store",
         },

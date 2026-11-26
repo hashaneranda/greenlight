@@ -65,7 +65,7 @@ class SpendApprovals:
         now = self._clock.now()
         with self._unit_of_work() as uow:
             actor = active_person(uow, actor_id)
-            request = request_by_reference(uow, reference)
+            request = request_by_reference(uow, reference, for_update=True)
             covers = uow.covers.held_by(actor.id, now.date())
             request.approve(actor, now, comment=comment, covers_held=covers)
             event_handlers.handle(uow, request, now)
@@ -75,7 +75,7 @@ class SpendApprovals:
         now = self._clock.now()
         with self._unit_of_work() as uow:
             actor = active_person(uow, actor_id)
-            request = request_by_reference(uow, reference)
+            request = request_by_reference(uow, reference, for_update=True)
             covers = uow.covers.held_by(actor.id, now.date())
             request.reject(actor, now, reason=reason, covers_held=covers)
             event_handlers.handle(uow, request, now)
@@ -84,7 +84,7 @@ class SpendApprovals:
     def withdraw(self, actor_id: UUID, reference: str, reason: str = "") -> None:
         now = self._clock.now()
         with self._unit_of_work() as uow:
-            request = request_by_reference(uow, reference)
+            request = request_by_reference(uow, reference, for_update=True)
             request.withdraw(active_person(uow, actor_id), now, reason)
             event_handlers.handle(uow, request, now)
             uow.commit()
@@ -101,7 +101,7 @@ class SpendApprovals:
         quotes = self._store_quotes(uploads, actor_id, now)
         with self._unit_of_work() as uow:
             actor = active_person(uow, actor_id)
-            request = request_by_reference(uow, reference)
+            request = request_by_reference(uow, reference, for_update=True)
             _check_catalog(uow, details)
             needs_reapproval = request.revise(
                 actor, details, usd_rate(uow, details.amount.currency), quotes, reason
@@ -123,7 +123,7 @@ class SpendApprovals:
     ) -> None:
         now = self._clock.now()
         with self._unit_of_work() as uow:
-            request = request_by_reference(uow, reference)
+            request = request_by_reference(uow, reference, for_update=True)
             request.record_payment(
                 active_person(uow, actor_id),
                 invoice_reference=invoice_reference,
