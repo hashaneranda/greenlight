@@ -1,0 +1,62 @@
+{% macro status_pill(request) -%}
+  {% if request.status == "approved" and request.payments and request.outstanding_usd == 0 %}
+    <span class="status paid">Paid</span>
+  {% elif request.status == "pending" %}
+    <span class="status pending">Awaiting {{ request.pending_step.stage_label if request.pending_step else "approval" }}</span>
+  {% else %}
+    <span class="status {{ request.status }}">{{ request.status|capitalize }}</span>
+  {% endif %}
+{%- endmacro %}
+
+{% macro amount(request) -%}
+  {% if request.currency == "USD" %}{{ request.total_usd|usd }}{% else %}{{ request.total.currency }} {{ "{:,.0f}".format(request.total.amount) }}{% endif %}
+{%- endmacro %}
+
+{% macro request_rows(requests, lookups, empty="Nothing here yet.") -%}
+  {% if requests %}
+  <ul class="list">
+    {% for item in requests %}
+    {% set requester = lookups.person(item.requester_id) %}
+    <li>
+      <a class="row" href="/requests/{{ item.reference }}">
+        <span class="title">{{ item.title }}</span>
+        <span class="amount">{{ amount(item) }}</span>
+        <span class="meta">{{ item.reference }} · {{ requester.name if requester else "" }} · {{ item.supplier }}</span>
+        <span>{{ status_pill(item) }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">{{ empty }}</p>
+  {% endif %}
+{%- endmacro %}
+
+{% macro breakdown_rows(groups, show_budget=False) -%}
+  {% if groups %}
+  <ul class="list">
+  {% for group in groups %}
+    {% set total = group.committed_usd + group.pending_usd %}
+    {% set scale = group.budget_usd if show_budget and group.budget_usd else total %}
+    <li class="row">
+      <span class="title">{{ group.label }}</span>
+      <span class="amount">{{ group.committed_usd|usd }}</span>
+      <span class="meta">
+        {{ group.count }} request{{ "s" if group.count != 1 }} · paid {{ group.paid_usd|usd }}{% if group.pending_usd %} · {{ group.pending_usd|usd }} awaiting approval{% endif %}
+        {% if show_budget and group.budget_usd %} · budget {{ group.budget_usd|usd }}{% endif %}
+      </span>
+      <span></span>
+      {% if scale %}
+      <span class="bar bar-row" aria-hidden="true">
+        <span class="paid" style="width: {{ (group.paid_usd / scale * 100)|round(1) }}%"></span>
+        <span class="committed" style="width: {{ ((group.committed_usd - group.paid_usd) / scale * 100)|round(1) }}%"></span>
+        <span class="pending" style="width: {{ (group.pending_usd / scale * 100)|round(1) }}%"></span>
+      </span>
+      {% endif %}
+    </li>
+  {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No spend yet.</p>
+  {% endif %}
+{%- endmacro %}

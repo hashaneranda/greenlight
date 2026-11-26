@@ -10,12 +10,20 @@ from greenlight.infrastructure.seed import seed_demo
 from greenlight.web.container import build_container
 
 log = logging.getLogger("greenlight")
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _project_root() -> Path:
+    """The folder holding alembic.ini: the checkout locally, /app in the container."""
+    for candidate in (Path.cwd(), Path(__file__).resolve().parents[2]):
+        if (candidate / "alembic.ini").exists():
+            return candidate
+    raise SystemExit("Run this from the folder that holds alembic.ini.")
 
 
 def migrate() -> None:
-    config = Config(str(PROJECT_ROOT / "alembic.ini"))
-    config.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    root = _project_root()
+    config = Config(str(root / "alembic.ini"))
+    config.set_main_option("script_location", str(root / "migrations"))
     command.upgrade(config, "head")
 
 
