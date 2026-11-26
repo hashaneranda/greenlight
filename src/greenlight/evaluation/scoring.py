@@ -5,8 +5,7 @@ from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 
-from greenlight.domain.invoice_matching import supplier_similarity
-from greenlight.domain.learning import SAME_SUPPLIER
+from greenlight.domain.invoice_matching import SAME_SUPPLIER, supplier_similarity
 
 MONEY_FIELDS = frozenset({"amount", "total"})
 A_CENT = Decimal("0.01")
