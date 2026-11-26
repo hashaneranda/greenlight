@@ -1,5 +1,7 @@
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from uuid import UUID
 
 from greenlight.application import event_handlers
@@ -11,7 +13,9 @@ from greenlight.application.loading import (
 )
 from greenlight.application.people_import import ImportPreview, PeopleImport
 from greenlight.application.ports import Clock, UnitOfWork
+from greenlight.domain.catalog import Category
 from greenlight.domain.errors import InvalidRequest, NotPermitted
+from greenlight.domain.money import BASE_CURRENCY
 from greenlight.domain.people import (
     Employee,
     Role,
@@ -65,16 +69,13 @@ class Administration:
             for name, value in _details(form).items():
                 setattr(person, name, value)
             person.roles = set(form.roles)
-            after = _profile(person)
-            changed = [name for name in before if before[name] != after[name]]
             event_handlers.audit(
                 uow,
                 "person_updated",
                 now,
                 actor_id=actor_id,
                 person=person.email,
-                before={name: before[name] for name in changed},
-                after={name: after[name] for name in changed},
+                **_changes(before, _profile(person)),
             )
             uow.commit()
 
@@ -135,12 +136,92 @@ class Administration:
             uow.commit()
             return preview
 
+    def add_category(self, actor_id: UUID, name: str, requires_it_review: bool) -> UUID:
+        now = self._clock.now()
+        with self._unit_of_work() as uow:
+            _reference_data_manager(uow, actor_id)
+            category = Category.create(name, requires_it_review, uow.catalog.categories())
+            uow.catalog.add_category(category)
+            event_handlers.audit(
+                uow,
+                "category_added",
+                now,
+                actor_id=actor_id,
+                name=category.name,
+                requires_it_review=category.requires_it_review,
+            )
+            uow.commit()
+            return category.id
+
+    def update_category(
+        self,
+        actor_id: UUID,
+        category_id: UUID,
+        *,
+        name: str,
+        requires_it_review: bool,
+        is_active: bool,
+    ) -> None:
+        now = self._clock.now()
+        with self._unit_of_work() as uow:
+            _reference_data_manager(uow, actor_id)
+            category = uow.catalog.category(category_id)
+            if category is None:
+                raise NotFound("That category no longer exists.")
+            before = _category_profile(category)
+            category.update(
+                name=name,
+                requires_it_review=requires_it_review,
+                is_active=is_active,
+                existing=uow.catalog.categories(),
+            )
+            event_handlers.audit(
+                uow,
+                "category_updated",
+                now,
+                actor_id=actor_id,
+                category=category.name,
+                **_changes(before, _category_profile(category)),
+            )
+            uow.commit()
+
+    def set_rate(self, actor_id: UUID, currency: str, usd_per_unit: Decimal) -> None:
+        now = self._clock.now()
+        currency = currency.strip().upper()
+        with self._unit_of_work() as uow:
+            _reference_data_manager(uow, actor_id)
+            if not re.fullmatch(r"[A-Z]{3}", currency):
+                raise InvalidRequest("Enter the three-letter currency code, such as AED.")
+            if currency == BASE_CURRENCY:
+                raise InvalidRequest(
+                    f"Amounts are kept in {BASE_CURRENCY}, so its rate is always 1."
+                )
+            if usd_per_unit <= 0:
+                raise InvalidRequest("The rate must be more than zero.")
+            rate_from = uow.catalog.usd_rate(currency)
+            uow.catalog.set_usd_rate(currency, usd_per_unit, actor_id, now)
+            event_handlers.audit(
+                uow,
+                "exchange_rate_set",
+                now,
+                actor_id=actor_id,
+                currency=currency,
+                rate_from=str(rate_from) if rate_from is not None else None,
+                rate_to=str(usd_per_unit),
+            )
+            uow.commit()
+
 
 def _people_manager(uow: UnitOfWork, actor_id: UUID) -> Employee:
     actor = active_person(uow, actor_id)
     if not actor.can_manage_people:
         raise NotPermitted("Only an admin can manage people.")
     return actor
+
+
+def _reference_data_manager(uow: UnitOfWork, actor_id: UUID) -> None:
+    if not active_person(uow, actor_id).can_manage_reference_data:
+        raise NotPermitted("Only finance can change categories and exchange rates.")
 
 
 def _person(uow: UnitOfWork, person_id: UUID) -> Employee:
@@ -193,3 +274,19 @@ def _details(source: Employee | PersonForm) -> dict:
 
 def _profile(person: Employee) -> dict:
     return {**_details(person), "roles": sorted(person.roles)}
+
+
+def _category_profile(category: Category) -> dict:
+    return {
+        "name": category.name,
+        "requires_it_review": category.requires_it_review,
+        "is_active": category.is_active,
+    }
+
+
+def _changes(before: dict, after: dict) -> dict[str, dict]:
+    changed = [name for name in before if before[name] != after[name]]
+    return {
+        "before": {name: before[name] for name in changed},
+        "after": {name: after[name] for name in changed},
+    }

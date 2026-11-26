@@ -2,12 +2,14 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from greenlight.application import audit_chain
-from greenlight.application.ports import AuditEntry, OutgoingNotification
+from greenlight.application.ports import AuditEntry, OutgoingNotification, RateRow
 from greenlight.domain.approval_policy import ApprovalPolicy
 from greenlight.domain.catalog import Category, Tag
 from greenlight.domain.cover import Cover
 from greenlight.domain.invoice_matching import Invoice
+from greenlight.domain.money import BASE_CURRENCY
 from greenlight.domain.people import Department, Employee, Site
+from tests.domain.builders import NOW
 
 
 class InMemoryRequests:
@@ -74,13 +76,16 @@ class InMemoryCatalog:
         self._categories = {c.id: c for c in categories}
         self._tags: dict = {}
         self._policy = policy
-        self._rates = {"USD": Decimal("1"), **rates}
+        self._rates = {code: RateRow(code, rate, NOW, None) for code, rate in rates.items()}
 
     def categories(self):
         return list(self._categories.values())
 
     def category(self, category_id):
         return self._categories.get(category_id)
+
+    def add_category(self, category: Category):
+        self._categories[category.id] = category
 
     def tags(self):
         return list(self._tags.values())
@@ -98,10 +103,19 @@ class InMemoryCatalog:
         self._policy.category_thresholds_usd[category_id] = amount_usd
 
     def usd_rate(self, currency):
-        return self._rates.get(currency)
+        if currency == BASE_CURRENCY:
+            return Decimal("1")
+        rate = self._rates.get(currency)
+        return rate.usd_per_unit if rate else None
+
+    def rates(self):
+        return sorted(self._rates.values(), key=lambda rate: rate.currency)
+
+    def set_usd_rate(self, currency, usd_per_unit, by_id, at):
+        self._rates[currency] = RateRow(currency, usd_per_unit, at, by_id)
 
     def currencies(self):
-        return sorted(self._rates)
+        return [BASE_CURRENCY, *sorted(self._rates)]
 
 
 class InMemoryCovers:

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -6,7 +6,7 @@ from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.orm import Session
 
 from greenlight.application import audit_chain
-from greenlight.application.ports import AuditEntry, OutgoingNotification
+from greenlight.application.ports import AuditEntry, OutgoingNotification, RateRow
 from greenlight.domain.approval_policy import ApprovalPolicy
 from greenlight.domain.catalog import Category, Tag
 from greenlight.domain.cover import Cover
@@ -115,6 +115,9 @@ class SqlCatalog:
     def category(self, category_id: UUID) -> Category | None:
         return self._session.get(Category, category_id)
 
+    def add_category(self, category: Category) -> None:
+        self._session.add(category)
+
     def tags(self) -> list[Tag]:
         return list(self._session.scalars(select(Tag)))
 
@@ -154,6 +157,20 @@ class SqlCatalog:
                 tables.exchange_rates.c.currency == currency
             )
         ).scalar()
+
+    def rates(self) -> list[RateRow]:
+        rates = tables.exchange_rates
+        rows = self._session.execute(select(rates).order_by(rates.c.currency))
+        return [RateRow(**row._mapping) for row in rows]
+
+    def set_usd_rate(self, currency: str, usd_per_unit: Decimal, by_id: UUID, at: datetime) -> None:
+        rates = tables.exchange_rates
+        values = {"usd_per_unit": usd_per_unit, "updated_at": at, "updated_by_id": by_id}
+        changed = self._session.execute(
+            update(rates).where(rates.c.currency == currency).values(**values)
+        )
+        if changed.rowcount == 0:
+            self._session.execute(insert(rates).values(currency=currency, **values))
 
     def currencies(self) -> list[str]:
         codes = set(self._session.scalars(select(tables.exchange_rates.c.currency)))

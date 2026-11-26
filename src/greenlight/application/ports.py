@@ -47,10 +47,20 @@ class People(Protocol):
     def sites(self) -> list[Site]: ...
 
 
+@dataclass(frozen=True)
+class RateRow:
+    currency: str
+    usd_per_unit: Decimal
+    updated_at: datetime
+    updated_by_id: UUID | None
+
+
 class Catalog(Protocol):
     def categories(self) -> list[Category]: ...
 
     def category(self, category_id: UUID) -> Category | None: ...
+
+    def add_category(self, category: Category) -> None: ...
 
     def tags(self) -> list[Tag]: ...
 
@@ -63,6 +73,12 @@ class Catalog(Protocol):
     def set_executive_threshold(self, category_id: UUID, amount_usd: Decimal) -> None: ...
 
     def usd_rate(self, currency: str) -> Decimal | None: ...
+
+    def rates(self) -> list[RateRow]: ...
+
+    def set_usd_rate(
+        self, currency: str, usd_per_unit: Decimal, by_id: UUID, at: datetime
+    ) -> None: ...
 
     def currencies(self) -> list[str]: ...
 
