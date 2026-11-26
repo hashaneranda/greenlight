@@ -1,53 +1,64 @@
-{% macro status_pill(request) -%}
+{% macro status_text(request) -%}
   {% if request.status == "approved" and request.payments and request.outstanding_usd == 0 %}
-    <span class="status paid">Paid</span>
+    <span class="status-text paid">Paid</span>
+  {% elif request.status == "approved" and request.payments %}
+    <span class="status-text approved">Part paid</span>
   {% elif request.status == "pending" %}
-    <span class="status pending">Awaiting {{ request.pending_step.stage_label if request.pending_step else "approval" }}</span>
+    <span class="status-text pending">With {{ request.pending_step.stage_label if request.pending_step else "approvers" }}</span>
+  {% elif request.status == "rejected" %}
+    <span class="status-text rejected">Not approved</span>
   {% else %}
-    <span class="status {{ request.status }}">{{ request.status|capitalize }}</span>
+    <span class="status-text {{ request.status }}">{{ request.status|capitalize }}</span>
   {% endif %}
 {%- endmacro %}
 
-{% macro amount(request) -%}
-  {% if request.currency == "USD" %}{{ request.total_usd|usd }}{% else %}{{ request.total.currency }} {{ "{:,.0f}".format(request.total.amount) }}{% endif %}
+{% macro signal(request, viewer=None) -%}
+  <span class="signal {{ request.status }}" role="img" aria-label="{{ request.current_steps|selectattr('status', 'equalto', 'approved')|list|length }} of {{ request.current_steps|length }} approvals">
+    {% for step in request.current_steps %}
+    <span class="light {{ step.status }}{% if viewer and step.status == 'pending' and step.approver_id == viewer.id %} your-turn{% endif %}"></span>
+    {% endfor %}
+  </span>
 {%- endmacro %}
 
-{% macro request_rows(requests, lookups, empty="Nothing here yet.") -%}
+{% macro amount(request) -%}
+  {% if request.currency == "USD" %}{{ request.total_usd|usd }}{% else %}<span class="ccy">{{ request.total.currency }}</span>{{ "{:,.0f}".format(request.total.amount) }}{% endif %}
+{%- endmacro %}
+
+{% macro request_rows(requests, lookups, viewer=None, empty_title="Nothing here yet", empty="", show_requester=True) -%}
   {% if requests %}
-  <ul class="list">
+  <ul class="rows">
     {% for item in requests %}
     {% set requester = lookups.person(item.requester_id) %}
     <li>
       <a class="row" href="/requests/{{ item.reference }}">
         <span class="title">{{ item.title }}</span>
         <span class="amount">{{ amount(item) }}</span>
-        <span class="meta">{{ item.reference }} · {{ requester.name if requester else "" }} · {{ item.supplier }}</span>
-        <span>{{ status_pill(item) }}</span>
+        <span class="sub">{% if show_requester and requester %}{{ requester.name }}, {% endif %}{{ item.supplier }}</span>
+        <span class="end">{{ signal(item, viewer) }}</span>
+        <span class="sub">{{ status_text(item) }}</span>
+        <span class="sub end">{{ item.reference }}</span>
       </a>
     </li>
     {% endfor %}
   </ul>
   {% else %}
-  <p class="empty">{{ empty }}</p>
+  <p class="empty"><strong>{{ empty_title }}</strong>{{ empty }}</p>
   {% endif %}
 {%- endmacro %}
 
 {% macro breakdown_rows(groups, show_budget=False) -%}
   {% if groups %}
-  <ul class="list">
+  <ul class="rows">
   {% for group in groups %}
     {% set total = group.committed_usd + group.pending_usd %}
     {% set scale = group.budget_usd if show_budget and group.budget_usd else total %}
     <li class="row">
       <span class="title">{{ group.label }}</span>
       <span class="amount">{{ group.committed_usd|usd }}</span>
-      <span class="meta">
-        {{ group.count }} request{{ "s" if group.count != 1 }} · paid {{ group.paid_usd|usd }}{% if group.pending_usd %} · {{ group.pending_usd|usd }} awaiting approval{% endif %}
-        {% if show_budget and group.budget_usd %} · budget {{ group.budget_usd|usd }}{% endif %}
-      </span>
-      <span></span>
+      <span class="sub">{{ group.count }} request{{ "s" if group.count != 1 }}, {{ group.paid_usd|usd }} paid{% if group.pending_usd %}, {{ group.pending_usd|usd }} waiting{% endif %}</span>
+      <span class="sub end">{% if show_budget and group.budget_usd %}of {{ group.budget_usd|usd }}{% endif %}</span>
       {% if scale %}
-      <span class="bar bar-row" aria-hidden="true">
+      <span class="bar" aria-hidden="true">
         <span class="paid" style="width: {{ (group.paid_usd / scale * 100)|round(1) }}%"></span>
         <span class="committed" style="width: {{ ((group.committed_usd - group.paid_usd) / scale * 100)|round(1) }}%"></span>
         <span class="pending" style="width: {{ (group.pending_usd / scale * 100)|round(1) }}%"></span>

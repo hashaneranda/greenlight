@@ -32,15 +32,16 @@ async def read_invoice(request: Request, user: CurrentUser):
             raise InvalidRequest("Choose an invoice to read.")
         if not request.app.state.invoice_reads.allow(str(user.id)):
             raise InvalidRequest("You have read a lot of invoices this hour. Try again later.")
-        invoice, matches = container.approvals.read_invoice(user.id, uploads[0])
+        check = container.approvals.read_invoice(user.id, uploads[0])
     except DomainError as error:
         flash(request, str(error), "error")
-        return RedirectResponse("/payments", status_code=303)
+        return RedirectResponse("/payments#read", status_code=303)
     return render(
         request,
         "payments/matches.html",
-        invoice=invoice,
-        matches=matches,
+        check=check,
+        invoice=check.invoice,
+        filename=uploads[0].filename,
         lookups=container.queries.lookups(),
         today=local_today(),
     )

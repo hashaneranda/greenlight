@@ -5,22 +5,22 @@
 <div class="page-head">
   <div>
     <h1>Audit log</h1>
-    <p class="muted">Every action, who took it and when. Entries can't be edited, and each one is chained to the one before it, so any change shows up here.</p>
+    <p>Every action, who took it and when. Entries can't be edited, and each one is sealed to the one before it, so any change to the past breaks the chain.</p>
   </div>
 </div>
 {% if tampered %}
-<div class="notice error" role="alert">{{ tampered|length }} entr{{ "ies don't" if tampered|length != 1 else "y doesn't" }} match the chain. Investigate before relying on this log.</div>
+<div class="verdict stop"><span class="light rejected" aria-hidden="true"></span><div><strong>The chain is broken</strong>{{ tampered|length }} entr{{ "ies don't" if tampered|length != 1 else "y doesn't" }} match the chain. Investigate before relying on this log.</div></div>
 {% else %}
-<div class="notice ok">Chain verified. No entries have been altered.</div>
+<div class="verdict ok"><span class="light approved" aria-hidden="true"></span><div><strong>Chain verified</strong>No entries have been altered.</div></div>
 {% endif %}
-<section class="card flush">
-  <div class="table-scroll"><table>
-    <thead><tr><th>Request</th><th>What happened</th></tr></thead>
-    <tbody>
+<section class="sheet">
+  <ul class="rows audit">
     {% for entry in entries %}
-    <tr><td class="small">{% if entry.request_id in references %}<a href="/requests/{{ references[entry.request_id] }}">{{ references[entry.request_id] }}</a>{% endif %}</td><td>{{ history_line(entry, lookups) }}</td></tr>
+    <li class="row">
+      <span class="sub">{{ history_line(entry, lookups) }}</span>
+      <span class="sub end">{% if entry.request_id in references %}<a href="/requests/{{ references[entry.request_id] }}">{{ references[entry.request_id] }}</a>{% endif %}</span>
+    </li>
     {% endfor %}
-    </tbody>
-  </table></div>
+  </ul>
 </section>
 {% endblock %}

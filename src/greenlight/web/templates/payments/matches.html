@@ -1,40 +1,121 @@
 {% extends "base.html" %}
-{% block title %}Invoice matches{% endblock %}
+{% from "partials/icons.html" import icon %}
+{% block title %}Invoice check{% endblock %}
 {% block content %}
+{% set unclear = invoice.unclear_fields %}
+{% set best = check.matches[0] if check.matches else None %}
+{% macro field(name, label, value) -%}
+  <dt>{{ label }}</dt>
+  <dd>{{ value or "Not on the invoice" }}{% if name in unclear %} <span class="check-this">Check this</span>{% endif %}</dd>
+{%- endmacro %}
+
+<a class="back" href="/payments">{{ icon("back") }}Payments</a>
+
 <div class="page-head">
   <div>
-    <h1>Invoice {{ invoice.invoice_number or "(no number)" }}</h1>
-    <p class="muted">{{ invoice.supplier }} · {{ invoice.total_money }}{% if invoice.invoice_date %} · dated {{ invoice.invoice_date|day }}{% endif %}</p>
+    <h1>Invoice {{ invoice.invoice_number or "with no number" }}</h1>
+    <p>Read by AI from {{ filename }}. Compare it with the paper before you pay.</p>
   </div>
-  <a class="button" href="/payments">Back</a>
 </div>
-<div class="notice info">Read automatically. Check the figures against the invoice before recording a payment.</div>
 
-{% for match in matches %}
-{% set r = match.request %}
-<section class="card match spaced">
-  <h2><a href="/requests/{{ r.reference }}">{{ r.reference }}</a> · {{ r.title }}</h2>
-  <p class="small muted">{{ r.supplier }} · raised by {{ lookups.person(r.requester_id).name }} · left to pay {{ r.outstanding_usd|usd }}</p>
-  <ul class="reason-list">
-    {% for reason in match.reasons %}<li>{{ reason }}</li>{% endfor %}
-    {% for warning in match.warnings %}<li class="warn">{{ warning }}</li>{% endfor %}
-  </ul>
-  <form class="spaced" method="post" action="/requests/{{ r.reference }}/payments">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <div class="field"><label for="inv-{{ loop.index }}">Invoice number</label><input id="inv-{{ loop.index }}" name="invoice_reference" value="{{ invoice.invoice_number }}" required></div>
-    <div class="field-row">
-      <div class="field"><label for="amt-{{ loop.index }}">Amount paid</label><input id="amt-{{ loop.index }}" name="amount" value="{{ invoice.total }}" inputmode="decimal" required></div>
-      <div class="field"><label for="cur-{{ loop.index }}">Currency</label><input id="cur-{{ loop.index }}" name="currency" value="{{ invoice.currency }}" maxlength="3" required></div>
-    </div>
-    <div class="field"><label for="paid-{{ loop.index }}">Paid on</label><input id="paid-{{ loop.index }}" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
-    <label class="check"><input type="checkbox" name="confirm_over_approval" value="yes"> If this goes above the approved amount, I have checked it and want to go ahead</label>
-    <button class="primary" type="submit">Record payment against {{ r.reference }}</button>
-  </form>
-</section>
+{% if best and not best.warnings %}
+<div class="verdict ok">
+  <span class="light approved" aria-hidden="true"></span>
+  <div><strong>This invoice has an approval</strong>It matches {{ best.request.reference }}, {{ best.request.title }}. You can pay it.</div>
+</div>
+{% elif best %}
+<div class="verdict warn">
+  <span class="light pending" aria-hidden="true"></span>
+  <div><strong>Over the approval</strong>{{ best.warnings|join(". ") }}. Ask {{ lookups.person(best.request.requester_id).first_name }} why before paying, or pay only what was approved.</div>
+</div>
+{% elif check.awaiting_approval %}
+{% set waiting = check.awaiting_approval[0] %}
+<div class="verdict stop">
+  <span class="light rejected" aria-hidden="true"></span>
+  <div><strong>Not approved yet</strong>{{ waiting.reference }} from this supplier is still waiting for {{ waiting.pending_step.stage_label if waiting.pending_step else "approval" }}. Don't pay until it's approved.
+    <a href="/requests/{{ waiting.reference }}">Open {{ waiting.reference }}</a></div>
+</div>
 {% else %}
-<section class="card">
-  <h2>No matching approval</h2>
-  <p>Nothing approved looks like this invoice. Check whether someone spent without raising a request first, and follow up with them.</p>
-</section>
-{% endfor %}
+<div class="verdict stop">
+  <span class="light rejected" aria-hidden="true"></span>
+  <div><strong>No approval found</strong>Nobody raised a request for {{ invoice.supplier or "this supplier" }}. Someone may have spent without asking first, so check with them before paying.</div>
+</div>
+{% endif %}
+
+<div class="invoice-layout">
+  <section class="sheet" aria-labelledby="read-heading">
+    <div class="sheet-head"><h2 id="read-heading">{{ icon("spark") }} What the AI read</h2></div>
+    <div class="body">
+      <div class="figure small-figure">
+        <span class="ccy">{{ invoice.currency }}</span>
+        <span class="value">{{ "{:,.2f}".format(invoice.total) }}</span>
+        {% if "total" in unclear or "currency" in unclear %}<span class="check-this">Check this</span>{% endif %}
+      </div>
+      <dl class="facts">
+        {{ field("supplier", "Supplier", invoice.supplier) }}
+        {{ field("invoice_number", "Invoice", invoice.invoice_number) }}
+        {{ field("invoice_date", "Dated", invoice.invoice_date|day if invoice.invoice_date else "") }}
+        {{ field("purchase_reference", "Quotes", invoice.purchase_reference) }}
+      </dl>
+      {% if invoice.lines %}
+      <details>
+        <summary>{{ invoice.lines|length }} line{{ "s" if invoice.lines|length != 1 }} on the invoice</summary>
+        <ul class="rows flat">
+          {% for line in invoice.lines %}
+          <li class="row"><span class="sub">{{ line.description }}</span><span class="amount">{{ "{:,.2f}".format(line.amount) }}</span></li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+      {% if unclear %}<p class="muted small">Fields marked "Check this" were hard to read, so the AI may have got them wrong.</p>{% endif %}
+    </div>
+  </section>
+
+  <div>
+    {% for match in check.matches %}
+    {% set r = match.request %}
+    <section class="sheet match" aria-labelledby="match-{{ loop.index }}">
+      <div class="sheet-head">
+        <h2 id="match-{{ loop.index }}"><a href="/requests/{{ r.reference }}">{{ r.reference }}</a> {{ r.title }}</h2>
+        <span class="strength {{ match.strength }}">{{ {"strong": "Strong match", "likely": "Likely match", "possible": "Possible match"}[match.strength] }}</span>
+      </div>
+      <div class="body">
+        <ul class="reasons">
+          {% for reason in match.reasons %}<li class="yes">{{ icon("check") }}{{ reason }}</li>{% endfor %}
+          {% for warning in match.warnings %}<li class="no">{{ icon("flag") }}{{ warning }}</li>{% endfor %}
+        </ul>
+        <div class="money-line">
+          <div><span>Approved</span><strong>{{ r.approved_total_usd|usd }}</strong></div>
+          <div><span>Paid</span><strong>{{ r.paid_usd|usd }}</strong></div>
+          <div><span>Left</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
+        </div>
+
+        <details {% if loop.first %}open{% endif %}>
+          <summary>Pay against {{ r.reference }}</summary>
+          <form method="post" action="/requests/{{ r.reference }}/payments">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <div class="field"><label for="inv-{{ loop.index }}">Invoice number</label><input id="inv-{{ loop.index }}" name="invoice_reference" value="{{ invoice.invoice_number }}" required></div>
+            <div class="field">
+              <label for="amt-{{ loop.index }}">Amount to pay</label>
+              <div class="amount-input"><input id="amt-{{ loop.index }}" name="amount" value="{{ invoice.total }}" inputmode="decimal" required><input aria-label="Currency" name="currency" value="{{ invoice.currency }}" maxlength="3" required></div>
+            </div>
+            <div class="field"><label for="paid-{{ loop.index }}">Paid on</label><input id="paid-{{ loop.index }}" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
+            {% if match.warnings %}
+            <label class="check field"><input type="checkbox" name="confirm_over_approval" value="yes"><span>I've checked why it's over the approval and want to pay it anyway</span></label>
+            {% endif %}
+            <button class="primary block form-foot" type="submit" data-busy="Recording…">Record payment</button>
+          </form>
+        </details>
+      </div>
+    </section>
+    {% endfor %}
+
+    {% for waiting in check.awaiting_approval %}
+    <a class="sheet row-link" href="/requests/{{ waiting.reference }}">
+      <span class="light pending" aria-hidden="true"></span>
+      <span><strong>{{ waiting.reference }} {{ waiting.title }}</strong><span class="muted">Same supplier, waiting for {{ waiting.pending_step.stage_label if waiting.pending_step else "approval" }}</span></span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
 {% endblock %}

@@ -10,3 +10,4 @@ uploads/
 .neon
 node_modules/
 .env.local
+*.whl

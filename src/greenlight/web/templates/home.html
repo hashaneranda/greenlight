@@ -1,24 +1,45 @@
 {% extends "base.html" %}
 {% from "partials/macros.html" import request_rows %}
+{% from "partials/icons.html" import icon %}
 {% block title %}Home{% endblock %}
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Hi {{ user.first_name }}</h1>
-    <p class="muted">{% if waiting %}{{ waiting|length }} request{{ "s" if waiting|length != 1 }} waiting for you.{% else %}Nothing is waiting for you.{% endif %}</p>
+    <h1>{% if waiting %}{{ user.first_name }}, {{ waiting|length }} {{ "needs" if waiting|length == 1 else "need" }} your OK{% else %}All clear, {{ user.first_name }}{% endif %}</h1>
+    <p>{% if waiting %}Open one to see the quote and approve it, or send it back with a reason.{% else %}Nothing is waiting for your approval. Raise a request before you spend and it goes straight to the right people.{% endif %}</p>
   </div>
-  <a class="button primary" href="/requests/new">New request</a>
+  <div class="actions"><a class="button primary" href="/requests/new">{{ icon("plus") }}New request</a></div>
 </div>
 
-<div class="grid main-side">
-  <section class="card flush" aria-labelledby="waiting-heading">
-    <h2 id="waiting-heading" class="card-title">Waiting for you</h2>
-    {{ request_rows(waiting, lookups, "You're all caught up.") }}
-  </section>
+<div class="home-layout">
+  <div>
+    <section class="sheet" aria-labelledby="waiting-heading">
+      <div class="sheet-head"><h2 id="waiting-heading">Waiting for you</h2></div>
+      {{ request_rows(waiting, lookups, viewer=user, empty_title="You're all caught up", empty="New requests that need you will appear here, and we'll email you too.") }}
+    </section>
+  </div>
 
-  <section class="card flush" aria-labelledby="mine-heading">
-    <h2 id="mine-heading" class="card-title">Your requests</h2>
-    {{ request_rows(mine, lookups, "You haven't raised anything yet.") }}
-  </section>
+  <div>
+    {% if user.can_record_payments %}
+    <a class="sheet promo" href="/payments#read">
+      <span class="promo-icon">{{ icon("spark") }}</span>
+      <span><strong>Got an invoice?</strong><span class="muted">Upload it and Greenlight reads it, finds the approval it belongs to, and flags anything that doesn't add up.</span></span>
+    </a>
+    {% endif %}
+
+    <section class="sheet" aria-labelledby="mine-heading">
+      <div class="sheet-head"><h2 id="mine-heading">Your requests</h2>{% if mine %}<a class="small" href="/requests">See all</a>{% endif %}</div>
+      {{ request_rows(mine, lookups, viewer=user, show_requester=False, empty_title="Nothing raised yet", empty="Need to buy something? Raise it here first and track it until it's paid.") }}
+    </section>
+
+    <section class="how" aria-labelledby="how-heading">
+      <h2 id="how-heading" class="visually-hidden">How a request moves</h2>
+      <ol class="how-steps">
+        <li><span class="light"></span><span><strong>You ask</strong> with the quote, before spending</span></li>
+        <li><span class="light pending"></span><span><strong>They approve</strong> your manager, then IT or the COO when needed</span></li>
+        <li><span class="light approved"></span><span><strong>Finance pays</strong> against the approval, never over it</span></li>
+      </ol>
+    </section>
+  </div>
 </div>
 {% endblock %}

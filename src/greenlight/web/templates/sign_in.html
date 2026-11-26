@@ -1,31 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Sign in{% endblock %}
 {% block content %}
-<div class="page-head">
-  <div>
-    <h1>Who are you today?</h1>
-    <p class="muted">This is the demo. In production everyone signs in with their Microsoft work account, so there is no extra password.</p>
+<section class="welcome">
+  <div class="welcome-copy">
+    <h1>Ask before you spend. Get a yes on the way.</h1>
+    <p>Greenlight sends each spend request to the people who need to approve it, on their phone. Finance then pays against the approval, and every step is on the record.</p>
   </div>
-</div>
-<form method="post" action="/sign-in/demo" class="persona-grid">
+  <div class="welcome-route" aria-hidden="true">
+    <div class="demo-light approved"><span class="light approved"></span><span><strong>Priya</strong> line manager</span></div>
+    <div class="demo-light approved"><span class="light approved"></span><span><strong>Daniel</strong> IT</span></div>
+    <div class="demo-light pending"><span class="light pending your-turn"></span><span><strong>Nadia</strong> COO, over $5,000</span></div>
+  </div>
+</section>
+
+<h2 class="section-title">Try it as someone at Orvane</h2>
+<p class="muted pick-hint">This is a demo, so you can be anyone. In production people sign in with their Microsoft work account.</p>
+<form method="post" action="/sign-in/demo" class="sheet">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   {% if needs_passcode %}
-  <div class="field"><label for="passcode">Demo passcode</label><input id="passcode" name="passcode" type="password" autocomplete="current-password" required></div>
+  <div class="field passcode"><label for="passcode">Demo passcode</label><input id="passcode" name="passcode" type="password" autocomplete="current-password" required></div>
   {% endif %}
+  <ul class="people">
   {% for person in people %}
-  <button class="persona" name="employee_id" value="{{ person.id }}">
-    <span class="avatar">{{ person.initials }}</span>
+  {% set manager = lookups.person(person.manager_id) %}
+  <li>
+  <button class="persona" name="employee_id" value="{{ person.id }}"><span class="avatar">{{ person.initials }}</span>
     <span>
       <strong>{{ person.name }}</strong><br>
-      <span class="role">{{ person.job_title }}{% set manager = lookups.person(person.manager_id) %}{% if manager %} · reports to {{ manager.first_name }}{% endif %}</span>
+      <span class="role">{{ person.job_title }}{% if manager %}, reports to {{ manager.first_name }}{% endif %}</span>
     </span>
-    <span class="tags">
-      {% if "executive_approver" in person.roles %}<span class="pill">Approves big spend</span>{% endif %}
-      {% if "it_approver" in person.roles %}<span class="pill">Approves IT</span>{% endif %}
-      {% if "finance" in person.roles %}<span class="pill">Finance</span>{% endif %}
-      {% if "admin" in person.roles %}<span class="pill">Admin</span>{% endif %}
+    <span class="does">
+      {%- if "executive_approver" in person.roles %}Approves anything over the limit
+      {%- elif "finance" in person.roles %}Pays invoices and reads them with AI
+      {%- elif "it_approver" in person.roles %}Approves anything IT
+      {%- elif "admin" in person.roles %}Sees all spend
+      {%- else %}Raises requests{% endif -%}
     </span>
   </button>
+  </li>
   {% endfor %}
+  </ul>
 </form>
 {% endblock %}

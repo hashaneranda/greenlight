@@ -4,26 +4,26 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <h1>Where the money is going</h1>
-    <p class="muted">{{ board.scope }}. All figures in US dollars at the rate on the day each request was raised.</p>
+    <h1>Where the money goes</h1>
+    <p>{{ board.scope }}. Everything in US dollars, at the rate on the day each request was raised.</p>
   </div>
 </div>
 
-<div class="kpis">
-  <div class="kpi"><div class="label">Approved</div><div class="value">{{ board.approved_usd|usd }}</div></div>
-  <div class="kpi"><div class="label">Paid</div><div class="value">{{ board.paid_usd|usd }}</div></div>
-  <div class="kpi"><div class="label">Approved, not yet paid</div><div class="value">{{ board.outstanding_usd|usd }}</div></div>
-  <div class="kpi"><div class="label">Awaiting approval</div><div class="value">{{ board.pending_usd|usd }}</div></div>
+<div class="totals">
+  <div class="total"><span>Approved</span><strong>{{ board.approved_usd|usd }}</strong></div>
+  <div class="total"><span>Paid</span><strong>{{ board.paid_usd|usd }}</strong></div>
+  <div class="total"><span>Still to pay</span><strong>{{ board.outstanding_usd|usd }}</strong></div>
+  <div class="total"><span>Waiting for approval</span><strong>{{ board.pending_usd|usd }}</strong></div>
 </div>
 
-<p class="legend"><span><i class="paid-key"></i>Paid</span><span><i class="committed-key"></i>Approved</span><span><i class="pending-key"></i>Awaiting approval</span></p>
+<p class="key"><span><i class="paid"></i>Paid</span><span><i class="committed"></i>Approved, not paid</span><span><i class="pending"></i>Waiting for approval</span></p>
 
-<div class="grid two">
-  <section class="card flush"><h2 class="card-title">Projects</h2>{{ breakdown_rows(board.by_project, show_budget=True) }}</section>
-  <section class="card flush"><h2 class="card-title">Trips</h2>{{ breakdown_rows(board.by_trip) }}</section>
-  <section class="card flush"><h2 class="card-title">Categories</h2>{{ breakdown_rows(board.by_category) }}</section>
-  <section class="card flush"><h2 class="card-title">Departments</h2>{{ breakdown_rows(board.by_department) }}</section>
+<div class="insight-grid">
+  <section class="sheet"><div class="sheet-head"><h2>Projects</h2></div>{{ breakdown_rows(board.by_project, show_budget=True) }}</section>
+  <section class="sheet"><div class="sheet-head"><h2>Trips</h2></div>{{ breakdown_rows(board.by_trip) }}</section>
+  <section class="sheet"><div class="sheet-head"><h2>Categories</h2></div>{{ breakdown_rows(board.by_category) }}</section>
+  <section class="sheet"><div class="sheet-head"><h2>Departments</h2></div>{{ breakdown_rows(board.by_department) }}</section>
 </div>
 
-<section class="card flush"><h2 class="card-title">Latest requests</h2>{{ request_rows(board.recent, lookups) }}</section>
+<section class="sheet"><div class="sheet-head"><h2>Latest requests</h2></div>{{ request_rows(board.recent, lookups, viewer=user) }}</section>
 {% endblock %}
