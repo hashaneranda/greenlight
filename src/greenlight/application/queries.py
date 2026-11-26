@@ -1,11 +1,11 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
 from greenlight.application.loading import active_person, request_by_reference
-from greenlight.application.ports import AuditEntry, Clock, UnitOfWork
+from greenlight.application.ports import AuditEntry, Clock, RateRow, UnitOfWork
 from greenlight.domain.catalog import Category, Tag, TagKind
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import NotPermitted
@@ -23,6 +23,7 @@ from greenlight.domain.spend_request import RequestStatus, SpendRequest
 from greenlight.domain.visibility import can_view
 
 ZERO = Decimal("0")
+RATE_STALE_AFTER = timedelta(days=35)
 
 
 @dataclass
@@ -70,6 +71,12 @@ class RulesView:
     limits: list[CooLimit]
     suggestions: list[LimitSuggestion]
     can_change: bool
+
+
+@dataclass(frozen=True)
+class RateView:
+    rate: RateRow
+    is_stale: bool
 
 
 @dataclass
@@ -156,6 +163,14 @@ class SpendQueries:
                 (t for t in uow.catalog.tags() if t.is_active), key=lambda t: (t.kind, t.name)
             )
             return categories, tags, uow.catalog.currencies()
+
+    def rates_view(self) -> list[RateView]:
+        now = self._clock.now()
+        with self._unit_of_work() as uow:
+            return [
+                RateView(rate, now - rate.updated_at > RATE_STALE_AFTER)
+                for rate in uow.catalog.rates()
+            ]
 
     def waiting_for(self, viewer_id: UUID) -> list[SpendRequest]:
         with self._unit_of_work() as uow:

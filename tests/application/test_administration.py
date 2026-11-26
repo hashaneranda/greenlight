@@ -1,10 +1,14 @@
 from dataclasses import replace
+from datetime import timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 
 from greenlight.application.administration import Administration, PersonForm
+from greenlight.application.errors import NotFound
 from greenlight.application.people_import import RowError
+from greenlight.application.queries import SpendQueries
 from greenlight.application.use_cases import SpendApprovals, Upload
 from greenlight.domain.errors import InvalidRequest, NotPermitted
 from greenlight.domain.people import Department, Role, Site
@@ -334,3 +338,99 @@ class TestImport:
     def test_only_an_admin_imports_people(self, admin, company):
         with pytest.raises(NotPermitted):
             admin.preview_import(company.tom.id, csv_of())
+
+
+class TestCategories:
+    def test_finance_adds_a_category(self, admin, company, uow):
+        category_id = admin.add_category(company.tom.id, "Training", requires_it_review=False)
+
+        assert uow.catalog.category(category_id).name == "Training"
+        assert uow.audit.entries[-1].action == "category_added"
+        assert uow.audit.entries[-1].details == {"name": "Training", "requires_it_review": False}
+        assert uow.commits == 1
+
+    def test_category_names_are_unique_whatever_the_case(self, admin, company):
+        with pytest.raises(InvalidRequest, match="already a category called Travel"):
+            admin.add_category(company.tom.id, "TRAVEL", requires_it_review=False)
+
+    def test_retiring_a_category_records_only_what_changed(self, admin, company, uow):
+        admin.update_category(
+            company.tom.id,
+            company.travel.id,
+            name="Travel",
+            requires_it_review=False,
+            is_active=False,
+        )
+
+        assert not company.travel.is_active
+        entry = uow.audit.entries[-1]
+        assert entry.action == "category_updated"
+        assert (entry.details["before"], entry.details["after"]) == (
+            {"is_active": True},
+            {"is_active": False},
+        )
+
+    def test_a_missing_category_cannot_be_changed(self, admin, company):
+        with pytest.raises(NotFound):
+            admin.update_category(
+                company.tom.id,
+                uuid4(),
+                name="Travel",
+                requires_it_review=False,
+                is_active=True,
+            )
+
+    @pytest.mark.parametrize("who", ["sam", "ceo"])
+    def test_only_finance_manages_categories(self, admin, company, who):
+        with pytest.raises(NotPermitted, match="Only finance"):
+            admin.add_category(getattr(company, who).id, "Training", requires_it_review=False)
+
+
+class TestExchangeRates:
+    def test_finance_changes_a_rate_and_the_old_one_is_kept_in_the_audit(self, admin, company, uow):
+        admin.set_rate(company.tom.id, "AED", Decimal("0.2730"))
+
+        [aed] = uow.catalog.rates()
+        assert (aed.usd_per_unit, aed.updated_at, aed.updated_by_id) == (
+            Decimal("0.2730"),
+            NOW,
+            company.tom.id,
+        )
+        assert uow.audit.entries[-1].action == "exchange_rate_set"
+        assert uow.audit.entries[-1].details == {
+            "currency": "AED",
+            "rate_from": "0.2723",
+            "rate_to": "0.2730",
+        }
+
+    def test_a_new_currency_starts_with_no_old_rate(self, admin, company, uow):
+        admin.set_rate(company.tom.id, " gbp", Decimal("1.27"))
+
+        assert uow.catalog.usd_rate("GBP") == Decimal("1.27")
+        assert uow.audit.entries[-1].details["rate_from"] is None
+
+    @pytest.mark.parametrize("currency", ["EURO", "E1R", ""])
+    def test_a_currency_is_three_letters(self, admin, company, currency):
+        with pytest.raises(InvalidRequest, match="three-letter"):
+            admin.set_rate(company.tom.id, currency, Decimal("1"))
+
+    @pytest.mark.parametrize("rate", ["0", "-0.5"])
+    def test_a_rate_is_more_than_zero(self, admin, company, rate):
+        with pytest.raises(InvalidRequest, match="more than zero"):
+            admin.set_rate(company.tom.id, "AED", Decimal(rate))
+
+    def test_the_us_dollar_is_always_one(self, admin, company):
+        with pytest.raises(InvalidRequest, match="always 1"):
+            admin.set_rate(company.tom.id, "USD", Decimal("1.1"))
+
+    def test_it_cannot_set_rates(self, admin, company):
+        with pytest.raises(NotPermitted, match="Only finance"):
+            admin.set_rate(company.daniel.id, "AED", Decimal("0.28"))
+
+    @pytest.mark.parametrize(("age", "is_stale"), [(35, False), (36, True)])
+    def test_a_rate_goes_stale_after_five_weeks(self, uow, clock, age, is_stale):
+        clock.moment = NOW + timedelta(days=age)
+
+        [aed] = SpendQueries(lambda: uow, clock).rates_view()
+
+        assert (aed.rate.currency, aed.is_stale) == ("AED", is_stale)

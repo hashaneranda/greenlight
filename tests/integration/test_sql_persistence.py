@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from greenlight.application import audit_chain
 from greenlight.application.administration import Administration
+from greenlight.application.ports import RateRow
 from greenlight.application.queries import SpendQueries
 from greenlight.application.use_cases import SpendApprovals, Upload
 from greenlight.domain.people import Department, Role
@@ -140,3 +141,29 @@ def test_a_leavers_approvals_are_handed_over_in_the_database(company, admin, ser
 
     assert [r.reference for r in queries.waiting_for(company.nadia.id)] == [reference]
     assert queries.person(company.sam.id).manager_id == company.nadia.id
+
+
+def test_setting_a_rate_updates_a_known_currency_and_adds_a_new_one(company, services):
+    factory = services[2]
+    later = NOW + timedelta(days=3)
+
+    with SqlUnitOfWork(factory) as uow:
+        uow.catalog.set_usd_rate("AED", Decimal("0.2730"), company.tom.id, later)
+        uow.catalog.set_usd_rate("GBP", Decimal("1.27"), company.tom.id, later)
+        uow.commit()
+
+    with SqlUnitOfWork(factory) as uow:
+        assert uow.catalog.rates() == [
+            RateRow("AED", Decimal("0.27300000"), later, company.tom.id),
+            RateRow("GBP", Decimal("1.27000000"), later, company.tom.id),
+        ]
+        assert uow.catalog.currencies() == ["USD", "AED", "GBP"]
+
+
+def test_a_new_category_is_offered_on_the_request_form(company, admin, services):
+    queries = services[1]
+
+    admin.add_category(company.tom.id, "Training", requires_it_review=False)
+
+    categories, _, _ = queries.form_options()
+    assert "Training" in [category.name for category in categories]

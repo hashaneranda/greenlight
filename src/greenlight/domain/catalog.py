@@ -14,6 +14,27 @@ class Category:
     is_active: bool = True
     id: UUID = field(default_factory=uuid4)
 
+    @classmethod
+    def create(cls, name: str, requires_it_review: bool, existing: list["Category"]) -> "Category":
+        return cls(_category_name(name, existing), requires_it_review)
+
+    def update(
+        self, *, name: str, requires_it_review: bool, is_active: bool, existing: list["Category"]
+    ) -> None:
+        self.name = _category_name(name, [c for c in existing if c.id != self.id])
+        self.requires_it_review = requires_it_review
+        self.is_active = is_active
+
+
+def _category_name(name: str, others: list[Category]) -> str:
+    name = name.strip()
+    if not name:
+        raise InvalidRequest("Give the category a name.")
+    taken = next((c for c in others if c.name.lower() == name.lower()), None)
+    if taken:
+        raise InvalidRequest(f"There is already a category called {taken.name}.")
+    return name
+
 
 class TagKind(enum.StrEnum):
     PROJECT = "project"
