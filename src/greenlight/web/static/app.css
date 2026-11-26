@@ -356,6 +356,11 @@ a.row:active::after { background: var(--sunken-2); opacity: 1; }
 .row .usd { display: block; text-align: right; font-size: var(--step--1); color: var(--muted); }
 .row .sub { color: var(--muted); font-size: var(--step--1); line-height: 1.4; }
 .row .end { justify-self: end; align-self: center; display: inline-flex; align-items: center; gap: var(--s-2); }
+.row.request { align-items: start; }
+.row .info, .row .figures { display: grid; gap: 2px; align-content: start; min-width: 0; }
+.row .info .title { margin-bottom: 2px; }
+.row .figures { justify-items: end; text-align: right; }
+.row .state { display: inline-flex; align-items: center; gap: var(--s-2); margin-top: var(--s-1); }
 .row .wide { grid-column: 1 / -1; margin-top: var(--s-1); font-size: var(--step--1); }
 .row .wide form { display: grid; gap: var(--s-4); font-size: var(--step-0); }
 .row .wide button { justify-self: start; }
@@ -387,7 +392,7 @@ a.row:active::after { background: var(--sunken-2); opacity: 1; }
 .filters .search { position: relative; flex: 1 1 100%; }
 .filters .search svg { position: absolute; left: 16px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
 .filters .search input { padding-left: 46px; }
-.filters select { flex: 1 1 140px; width: auto; min-height: 48px; }
+.filters select { flex: 1 1 140px; width: auto; min-width: 0; min-height: 48px; }
 .filters button { min-height: 48px; }
 
 .pills { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0; }
