@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -27,6 +28,8 @@ class SpendRequests(Protocol):
     def raised_by(self, requester_id: UUID) -> list[SpendRequest]: ...
 
     def with_status(self, status: RequestStatus) -> list[SpendRequest]: ...
+
+    def references(self, request_ids: Collection[UUID]) -> dict[UUID, str]: ...
 
 
 class People(Protocol):
