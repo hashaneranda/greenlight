@@ -3,7 +3,12 @@ from dataclasses import replace
 import pytest
 
 from greenlight.domain.errors import InvalidRequest
-from greenlight.domain.people import Role, check_approvers_remain, check_reporting_line
+from greenlight.domain.people import (
+    Role,
+    check_approvers_remain,
+    check_reporting_line,
+    pass_reports_up,
+)
 from tests.domain.builders import build_company
 
 
@@ -82,3 +87,10 @@ def test_the_same_person_loaded_again_is_still_the_person_leaving(company):
 
     with pytest.raises(InvalidRequest, match="COO"):
         check_approvers_remain([*company.org.people.values(), loaded_again], without=company.nadia)
+
+
+def test_a_leavers_reports_move_up_to_the_leavers_manager(company):
+    moved = pass_reports_up(company.priya, everyone(company))
+
+    assert moved == [company.sam]
+    assert company.sam.manager_id == company.nadia.id

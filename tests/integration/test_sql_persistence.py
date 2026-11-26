@@ -5,9 +5,10 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 
 from greenlight.application import audit_chain
+from greenlight.application.administration import Administration
 from greenlight.application.queries import SpendQueries
 from greenlight.application.use_cases import SpendApprovals, Upload
-from greenlight.domain.people import Department
+from greenlight.domain.people import Department, Role
 from greenlight.domain.spend_request import RequestStatus
 from greenlight.infrastructure.persistence import tables
 from greenlight.infrastructure.persistence.unit_of_work import SqlUnitOfWork, make_engine
@@ -28,6 +29,7 @@ def engine(database_url):
 @pytest.fixture
 def company(engine):
     company = build_company()
+    company.ceo.roles.add(Role.ADMIN)
     session = sessionmaker(engine, expire_on_commit=False)()
     operations = Department("Operations", head_id=None)
     session.add(operations)
@@ -103,3 +105,38 @@ def test_cover_and_reminders_work_against_the_database(company, services):
     assert [r.reference for r in queries.waiting_for(company.tom.id)] == [reference]
     clock.moment = NOW + timedelta(days=2)
     assert approvals.send_reminders(timedelta(hours=24)) == 1
+
+
+@pytest.fixture
+def admin(services):
+    factory, clock = services[2], services[3]
+    return Administration(lambda: SqlUnitOfWork(factory), clock)
+
+
+def test_an_import_saves_new_managers_before_the_people_who_report_to_them(
+    company, admin, services
+):
+    factory = services[2]
+    preview = admin.apply_import(
+        company.ceo.id,
+        "email,name,job_title,department,site,manager_email,active\n"
+        "lee.park@orvane.example,Lee Park,Buyer,,,mo.diaz@orvane.example,yes\n"
+        "sam.okafor@orvane.example,Sam Okafor,,,,mo.diaz@orvane.example,yes\n"
+        "mo.diaz@orvane.example,Mo Diaz,Head of buying,Operations,,nadia.frost@orvane.example,yes",
+    )
+
+    assert preview.errors == []
+    with SqlUnitOfWork(factory) as uow:
+        mo = uow.people.by_email("mo.diaz@orvane.example")
+        assert uow.people.by_email("lee.park@orvane.example").manager_id == mo.id
+        assert uow.people.get(company.sam.id).manager_id == mo.id
+
+
+def test_a_leavers_approvals_are_handed_over_in_the_database(company, admin, services):
+    approvals, queries = services[0], services[1]
+    reference = approvals.submit(company.sam.id, details(company.general), [PDF])
+
+    admin.deactivate_person(company.ceo.id, company.priya.id, hand_over_to_id=company.nadia.id)
+
+    assert [r.reference for r in queries.waiting_for(company.nadia.id)] == [reference]
+    assert queries.person(company.sam.id).manager_id == company.nadia.id

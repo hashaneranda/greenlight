@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from greenlight.application.administration import Administration
 from greenlight.application.queries import SpendQueries
 from greenlight.application.sign_in import MicrosoftSignIn
 from greenlight.application.use_cases import SpendApprovals
@@ -26,6 +27,7 @@ class Container:
     settings: Settings
     session_factory: sessionmaker[Session]
     approvals: SpendApprovals
+    admin: Administration
     queries: SpendQueries
     notifications: NotificationSender
     microsoft_sign_in: MicrosoftSignIn
@@ -65,6 +67,7 @@ def build_container(settings: Settings) -> Container:
             max_upload_bytes=settings.max_upload_mb * 1024 * 1024,
             quote_reader=quote_reader,
         ),
+        admin=Administration(unit_of_work, clock),
         queries=SpendQueries(unit_of_work, clock),
         notifications=NotificationSender(settings, session_factory),
         microsoft_sign_in=MicrosoftSignIn(unit_of_work),

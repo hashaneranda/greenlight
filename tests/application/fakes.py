@@ -37,15 +37,18 @@ class InMemoryRequests:
 
 
 class InMemoryPeople:
-    def __init__(self, people: list[Employee], departments: list[Department] = ()):
+    def __init__(
+        self, people: list[Employee], departments: list[Department] = (), sites: list[Site] = ()
+    ):
         self.items = {p.id: p for p in people}
         self._departments = list(departments)
+        self._sites = list(sites)
 
     def get(self, employee_id):
         return self.items.get(employee_id)
 
     def by_email(self, email):
-        return next((p for p in self.items.values() if p.email == email), None)
+        return next((p for p in self.items.values() if p.email.lower() == email.lower()), None)
 
     def active(self):
         return [p for p in self.items.values() if p.is_active]
@@ -63,7 +66,7 @@ class InMemoryPeople:
         return self._departments
 
     def sites(self) -> list[Site]:
-        return []
+        return self._sites
 
 
 class InMemoryCatalog:

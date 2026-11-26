@@ -557,6 +557,9 @@ class SpendRequest:
         if asked_now:
             self._activate(self.pending_step, now)
 
+    def is_waiting_on(self, approver: Employee) -> bool:
+        return bool(self._open_steps_for(approver))
+
     def remind_approver(self, now: datetime, after: timedelta) -> bool:
         step = self.pending_step
         if step is None or now - (step.reminded_at or step.activated_at) < after:

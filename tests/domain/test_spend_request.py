@@ -443,6 +443,14 @@ class TestHandingOverApprovals:
         with pytest.raises(NotPermitted, match="already approved"):
             request.hand_over_approvals(company.daniel, company.priya, actor=company.ceo, now=NOW)
 
+    def test_a_request_is_waiting_on_everyone_with_an_open_step(self, company):
+        request = submitted(company, company.sam, company.software, "9000")
+        request.approve(company.priya, NOW)
+
+        assert request.is_waiting_on(company.daniel)
+        assert request.is_waiting_on(company.nadia)
+        assert not request.is_waiting_on(company.priya)
+
     def test_there_must_be_something_to_hand_over(self, company):
         request = submitted(company, company.sam, company.general)
 
