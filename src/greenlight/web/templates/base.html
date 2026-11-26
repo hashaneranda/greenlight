@@ -37,6 +37,11 @@
       {% if user.sees_all_spend %}{{ nav_link("/rules", "Approval rules", "rules") }}{% endif %}
       {{ nav_link("/cover", "Cover", "cover") }}
       {% if user.can_read_audit_log %}{{ nav_link("/audit", "Audit log", "audit") }}{% endif %}
+      {% if user.can_manage_people %}{{ nav_link("/manage/people", "People", "people") }}{% endif %}
+      {% if user.can_manage_reference_data %}
+      {{ nav_link("/manage/categories", "Categories", "categories") }}
+      {{ nav_link("/manage/rates", "Exchange rates", "rates") }}
+      {% endif %}
     </nav>
     <div class="me">
       <span class="avatar">{{ user.initials }}</span>

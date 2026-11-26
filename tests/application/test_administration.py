@@ -434,3 +434,26 @@ class TestExchangeRates:
         [aed] = SpendQueries(lambda: uow, clock).rates_view()
 
         assert (aed.rate.currency, aed.is_stale) == ("AED", is_stale)
+
+
+class TestDirectory:
+    def test_people_are_found_by_name_email_or_title(self, uow, clock, company):
+        company.tom.job_title = "Head of Finance"
+        queries = SpendQueries(lambda: uow, clock)
+
+        assert queries.directory("finance") == [company.tom]
+        assert queries.directory("PRIYA.SHAH@") == [company.priya]
+
+    def test_people_who_have_left_come_last(self, admin, uow, clock, company):
+        admin.deactivate_person(company.ceo.id, company.ana.id, hand_over_to_id=None)
+
+        assert SpendQueries(lambda: uow, clock).directory()[-1] is company.ana
+
+    def test_approvals_waiting_on_someone_are_listed_for_their_hand_over(
+        self, approvals, uow, clock, company
+    ):
+        reference = approvals.submit(company.sam.id, details(company.general), [PDF])
+
+        [waiting] = SpendQueries(lambda: uow, clock).approvals_waiting_on(company.priya.id)
+
+        assert waiting.reference == reference

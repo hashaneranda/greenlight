@@ -4,7 +4,11 @@ from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from greenlight.application.loading import active_person, request_by_reference
+from greenlight.application.loading import (
+    active_person,
+    approvals_waiting_on,
+    request_by_reference,
+)
 from greenlight.application.ports import AuditEntry, Clock, RateRow, UnitOfWork
 from greenlight.domain.catalog import Category, Tag, TagKind
 from greenlight.domain.cover import Cover
@@ -18,7 +22,7 @@ from greenlight.domain.learning import (
     send_back_lessons,
     suggest_limits,
 )
-from greenlight.domain.people import Department, Employee
+from greenlight.domain.people import Department, Employee, Site
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 from greenlight.domain.visibility import can_view
 
@@ -30,6 +34,7 @@ RATE_STALE_AFTER = timedelta(days=35)
 class Lookups:
     people: dict[UUID, Employee]
     departments: dict[UUID, Department]
+    sites: dict[UUID, Site]
     categories: dict[UUID, Category]
     tags: dict[UUID, Tag]
 
@@ -149,6 +154,24 @@ class SpendQueries:
     def people(self) -> list[Employee]:
         with self._unit_of_work() as uow:
             return uow.people.active()
+
+    def directory(self, search: str = "") -> list[Employee]:
+        """Everyone who has ever been in Greenlight, people still here first."""
+        needle = search.strip().lower()
+        with self._unit_of_work() as uow:
+            return sorted(
+                (
+                    p
+                    for p in uow.people.all()
+                    if needle in f"{p.name} {p.email} {p.job_title}".lower()
+                ),
+                key=lambda p: (not p.is_active, p.name),
+            )
+
+    def approvals_waiting_on(self, person_id: UUID) -> list[SpendRequest]:
+        with self._unit_of_work() as uow:
+            person = uow.people.get(person_id)
+            return approvals_waiting_on(uow, person) if person else []
 
     def lookups(self) -> Lookups:
         with self._unit_of_work() as uow:
@@ -344,6 +367,7 @@ def _lookups(uow: UnitOfWork) -> Lookups:
     return Lookups(
         people={p.id: p for p in uow.people.all()},
         departments={d.id: d for d in uow.people.departments()},
+        sites={s.id: s for s in uow.people.sites()},
         categories={c.id: c for c in uow.catalog.categories()},
         tags={t.id: t for t in uow.catalog.tags()},
     )
