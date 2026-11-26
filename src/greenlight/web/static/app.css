@@ -706,6 +706,9 @@ body.focus { padding-bottom: var(--s-6); }
 .welcome h1 { font-size: var(--step-5); max-width: 12ch; }
 .welcome p { margin-top: var(--s-4); max-width: 46ch; color: var(--muted); font-size: var(--step-1); }
 .welcome-route { display: grid; max-width: 420px; padding: var(--s-6); border-radius: var(--r-card); background: var(--ink); color: var(--on-ink); }
+.welcome .route-for { display: grid; gap: 2px; margin: 0 0 var(--s-4); max-width: none; color: var(--on-ink); font-size: var(--step-0); padding-bottom: var(--s-4); border-bottom: 1px solid color-mix(in srgb, var(--on-ink) 16%, transparent); }
+.welcome .route-for strong { font: 900 var(--step-3)/1 var(--font-display); font-stretch: var(--condensed); font-variant-numeric: tabular-nums; }
+.welcome .route-for span { color: var(--on-ink-muted); font-size: var(--step--1); }
 .demo-light { position: relative; display: grid; grid-template-columns: 30px 1fr; gap: var(--s-4); align-items: center; padding: var(--s-2) 0; }
 .demo-light + .demo-light::before { content: ""; position: absolute; left: 14px; top: -12px; width: 2px; height: 22px; background: var(--signal); }
 .demo-light .light { width: 30px; height: 30px; border-width: 3px; box-shadow: inset 0 0 0 4px var(--ink); }
@@ -835,7 +838,7 @@ body.focus { padding-bottom: var(--s-6); }
   .tabbar, .topbar { display: none; }
   .shell { display: grid; grid-template-columns: 256px 1fr; min-height: 100dvh; }
   .shell.signed-out { display: block; }
-  .shell.signed-out .topbar { display: flex; max-width: 1160px; margin: 0 auto; padding-top: var(--s-6); }
+  .shell.signed-out .topbar { display: flex; max-width: 1160px; margin: 0 auto; padding: var(--s-6) var(--s-12) 0; }
 
   .rail {
     position: sticky; top: 0; height: 100dvh;
