@@ -45,7 +45,8 @@ def _usd(value: Decimal | None) -> str:
         return "–"
     if value == 0:
         return "$0"
-    return f"${value:,.0f}" if abs(value) >= 1000 else f"${value:,.2f}"
+    whole = value == value.to_integral_value() or abs(value) >= 1000
+    return f"${value:,.0f}" if whole else f"${value:,.2f}"
 
 
 def _when(moment: datetime | None) -> str:

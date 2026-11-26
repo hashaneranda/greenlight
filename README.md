@@ -14,7 +14,12 @@ Spend approval for Orvane Group. Anyone raises a request before they spend, the 
 - **Changes after approval**: a lower price keeps the approval and tells finance. A higher price or a new category sends it back through approval. Both versions stay in the history.
 - **Cover while away**: an approver names one colleague for a set period. Decisions are recorded as made on the approver's behalf, and nobody can use cover to approve their own request.
 - **Finance view**: approved against paid, per request. Payments are recorded against invoices, and overpayment is flagged to the COO.
-- **Invoice reading**: finance uploads an invoice, an LLM extracts the fields, and Greenlight suggests which approval it matches. Nothing is recorded until a person confirms.
+- **Invoice reading**: finance uploads an invoice, an LLM extracts the fields, and Greenlight suggests which approval it matches, flagging anything over the approval or not approved yet. Nothing is recorded until a person confirms.
+- **Quote reading**: a requester can start from the quote. An LLM fills in the supplier, price, currency and billing, and marks anything it was unsure of.
+- **Learning from decisions**: the category and project are filed the way the last request to that supplier was. Approvers see past decisions for the supplier and whether the amount is unusual for its category. The form warns about reasons similar requests were sent back.
+- **Suggested rule changes**: when the COO approves everything just over their limit in a category, Greenlight suggests a higher limit. It only changes when the COO accepts, and the change is audited.
+- **Confidential stays private**: confidential quotes are never sent to an LLM, and nothing is learned from confidential requests.
+- **Review one at a time**: approvers go through waiting requests as cards, approving or sending back with a tap or a swipe.
 - **Insights**: spend by project, trip, category and department, with budgets for projects.
 - **Audit log**: append-only and hash-chained, so editing any past entry is detectable. The log page verifies the chain.
 - **Notifications** by email or Teams, plus daily reminders for approvals left waiting.
@@ -46,6 +51,8 @@ Patterns, and where to find them:
 | Composition root | `web/container.py` | The only place that knows which adapters are wired in |
 
 Tests follow the same layers: domain tests with no I/O, use-case tests against in-memory adapters, persistence tests against a real database, and HTTP tests through FastAPI.
+
+The visual language, type and colour rules are in [docs/brand.md](docs/brand.md).
 
 ## Running it
 
