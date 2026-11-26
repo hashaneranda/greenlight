@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import status_text, signal %}
+{% from "partials/macros.html" import status_text, signal, decision_bar, send_back_sheet %}
 {% from "partials/history.html" import history_line with context %}
 {% from "partials/icons.html" import icon %}
 {% from "partials/learned.html" import seen_before %}
@@ -86,16 +86,7 @@
 
     {{ seen_before(view.precedent, people.categories[r.category_id].name) }}
 
-    {% if view.can_decide %}
-    <div class="decision" aria-label="Your decision">
-      {% if view.covering_for %}<p class="covering">You're covering for {{ view.covering_for.name }}.</p>{% endif %}
-      <button class="danger" type="button" data-open="reject-sheet">Send back</button>
-      <form method="post" action="/requests/{{ r.reference }}/approve">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="primary block" type="submit" data-busy="Approving…">Approve</button>
-      </form>
-    </div>
-    {% endif %}
+    {% if view.can_decide %}{{ decision_bar(r.reference, csrf, view.covering_for) }}{% endif %}
   </div>
 
   <section class="sheet facts-sheet" aria-labelledby="facts-heading">
@@ -178,20 +169,5 @@
   {% endif %}
 </div>
 
-{% if view.can_decide %}
-<dialog class="sheet-dialog" id="reject-sheet" aria-labelledby="reject-heading">
-  <div class="grabber"></div>
-  <form method="post" action="/requests/{{ r.reference }}/reject">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <h2 id="reject-heading">Send it back to {{ requester.first_name }}</h2>
-    <p>Say what would get it approved, like a second quote or a lower price. {{ requester.first_name }} sees this straight away.</p>
-    <label class="visually-hidden" for="reason">Your reason</label>
-    <textarea id="reason" name="reason" required placeholder="For example: please get a second quote from Katanga Rentals"></textarea>
-    <div class="buttons">
-      <button type="button" class="quiet" data-close>Cancel</button>
-      <button class="danger solid" type="submit" data-busy="Sending…">Send back</button>
-    </div>
-  </form>
-</dialog>
-{% endif %}
+{% if view.can_decide %}{{ send_back_sheet(r.reference, requester, csrf) }}{% endif %}
 {% endblock %}

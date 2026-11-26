@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import signal %}
+{% from "partials/macros.html" import decision_bar, send_back_sheet %}
 {% from "partials/icons.html" import icon %}
 {% from "partials/learned.html" import seen_before %}
 {% block title %}Review{% endblock %}
@@ -15,65 +15,49 @@
 {% set r = view.request %}
 {% set people = view.lookups %}
 {% set requester = people.person(r.requester_id) %}
-<div class="review-top">
-  <a class="back" href="/">{{ icon("back") }}Home</a>
-  <span class="muted">{{ remaining }} waiting</span>
-</div>
-
-<article class="review-card" data-swipe aria-labelledby="review-title">
-  <header>
-    <span class="avatar">{{ requester.initials }}</span>
-    <span><strong>{{ requester.name }}</strong><span class="muted">{{ requester.job_title }}, {{ r.submitted_at|when }}</span></span>
-  </header>
-
-  <h1 id="review-title">{{ r.title }}</h1>
-  <div class="figure">
-    {% if r.currency != "USD" %}<span class="ccy">{{ r.currency }}</span>{% endif %}
-    <span class="value">{% if r.currency == "USD" %}{{ r.total_usd|usd }}{% else %}{{ "{:,.0f}".format(r.total.amount) }}{% endif %}</span>
+<div class="review">
+  <div class="review-top">
+    <a class="back" href="/">{{ icon("back") }}Home</a>
+    <span class="muted">{{ remaining }} waiting</span>
   </div>
-  <p class="muted small">
-    {%- if r.is_recurring %}{{ r.unit_price }} {{ r.billing_period }} for {{ r.term_months }} months. {% endif -%}
-    {%- if r.currency != "USD" %}About {{ r.total_usd|usd }}. {% endif -%}
-    From {{ r.supplier }}.
-  </p>
 
-  <p class="why">{{ r.justification }}</p>
-
-  <p class="pills">
-    <span>{{ people.categories[r.category_id].name }}</span>
-    {% if r.tag_id %}<span>{{ people.tags[r.tag_id].label }}</span>{% endif %}
-    {% for quote in r.quotes %}<a href="/requests/{{ r.reference }}/quotes/{{ quote.id }}">{{ icon("invoice") }}Quote</a>{% else %}<span class="warn">No quote: {{ r.no_quote_reason }}</span>{% endfor %}
-  </p>
-
-  {{ seen_before(view.precedent, people.categories[r.category_id].name) }}
-
-  <a class="small" href="/requests/{{ r.reference }}">Full details and history</a>
-</article>
-
-<div class="review-actions">
-  <button class="round no" type="button" data-open="reject-sheet">{{ icon("close") }}<span>Send back</span></button>
-  <form method="post" action="/requests/{{ r.reference }}/approve">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <input type="hidden" name="next" value="review">
-    <button class="round yes" type="submit">{{ icon("check") }}<span>Approve</span></button>
-  </form>
-</div>
-<p class="swipe-hint muted small">Swipe right to approve, left to send back</p>
-
-<dialog class="sheet-dialog" id="reject-sheet" aria-labelledby="reject-heading">
-  <div class="grabber"></div>
-  <form method="post" action="/requests/{{ r.reference }}/reject">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <input type="hidden" name="next" value="review">
-    <h2 id="reject-heading">Send it back to {{ requester.first_name }}</h2>
-    <p>Say what would get it approved. {{ requester.first_name }} sees this straight away.</p>
-    <label class="visually-hidden" for="reason">Your reason</label>
-    <textarea id="reason" name="reason" required placeholder="For example: please get a second quote"></textarea>
-    <div class="buttons">
-      <button type="button" class="quiet" data-close>Cancel</button>
-      <button class="danger solid" type="submit" data-busy="Sending…">Send back</button>
+  <article class="review-card" data-swipe aria-labelledby="review-title">
+    <div class="figure">
+      {% if r.currency != "USD" %}<span class="ccy">{{ r.currency }}</span>{% endif %}
+      <span class="value">{% if r.currency == "USD" %}{{ r.total_usd|usd }}{% else %}{{ "{:,.0f}".format(r.total.amount) }}{% endif %}</span>
+      {% if r.currency != "USD" or r.is_recurring %}
+      <span class="aside">
+        {%- if r.currency != "USD" %}About {{ r.total_usd|usd }}{% if r.is_recurring %}. {% endif %}{% endif -%}
+        {%- if r.is_recurring %}{{ r.unit_price }} {{ r.billing_period }} for {{ r.term_months }} months{% endif -%}
+      </span>
+      {% endif %}
     </div>
-  </form>
-</dialog>
+    <h1 id="review-title">{{ r.title }}</h1>
+    <p class="supplier">From <strong>{{ r.supplier }}</strong></p>
+
+    {{ seen_before(view.precedent, people.categories[r.category_id].name) }}
+
+    <p class="why">{{ r.justification }}</p>
+
+    <p class="pills">
+      <span>{{ people.categories[r.category_id].name }}</span>
+      {% if r.tag_id %}<span>{{ people.tags[r.tag_id].label }}</span>{% endif %}
+      {% for quote in r.quotes %}<a href="/requests/{{ r.reference }}/quotes/{{ quote.id }}">{{ icon("invoice") }}Quote</a>{% else %}<span class="warn">No quote: {{ r.no_quote_reason }}</span>{% endfor %}
+    </p>
+
+    <p class="asker">
+      <span class="avatar">{{ requester.initials }}</span>
+      <span><strong>{{ requester.name }}</strong><span class="muted">{{ requester.job_title }}, {{ r.submitted_at|when }}</span></span>
+    </p>
+
+    <a class="small" href="/requests/{{ r.reference }}">Full details and history</a>
+  </article>
+
+  <p class="swipe-hint muted small">Or swipe the card: right to approve, left to send back.</p>
+
+  {{ decision_bar(r.reference, csrf, view.covering_for, next="review") }}
+</div>
+
+{{ send_back_sheet(r.reference, requester, csrf, next="review") }}
 {% endif %}
 {% endblock %}
