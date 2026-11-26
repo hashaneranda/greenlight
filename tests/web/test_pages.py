@@ -169,17 +169,21 @@ def test_the_request_form_learns_how_a_supplier_was_filed(client):
 
 def test_the_coo_reviews_waiting_requests_one_by_one(client):
     sign_in_as(client, "Nadia Frost")
-    card = client.get("/review").text
-    reference = re.search(r'action="/requests/(GL-\d+)/approve"', card).group(1)
+    reviewed = []
+    while match := re.search(
+        r'action="/requests/(GL-\d+)/approve"', card := client.get("/review").text
+    ):
+        reference = match.group(1)
+        response = client.post(
+            f"/requests/{reference}/approve",
+            data={"csrf": csrf_from(card), "next": "review"},
+            follow_redirects=False,
+        )
+        assert response.headers["location"] == "/review"
+        reviewed.append(reference)
 
-    response = client.post(
-        f"/requests/{reference}/approve",
-        data={"csrf": csrf_from(card), "next": "review"},
-        follow_redirects=False,
-    )
-
-    assert response.headers["location"] == "/review"
-    assert "All clear" in client.get("/review").text
+    assert len(reviewed) == len(set(reviewed)) >= 2
+    assert "All clear" in card
 
 
 def test_a_sent_back_request_can_be_fixed_and_sent_again(client):
