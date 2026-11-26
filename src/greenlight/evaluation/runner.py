@@ -22,6 +22,7 @@ from greenlight.infrastructure.ai.document_readers import (
     AIInvoiceReader,
     AIQuoteReader,
     DocumentModel,
+    ModelUnavailable,
     Usage,
 )
 from greenlight.infrastructure.seed import CATEGORIES
@@ -75,7 +76,11 @@ def run(
     model_name: str,
     ran_on: date,
 ) -> Run:
-    """Every case really reaches the model: nothing is remembered between reads."""
+    """Every case really reaches the model: nothing is remembered between reads.
+
+    A case the model never saw says nothing about how well it reads, so a run stops with
+    `ModelUnavailable` rather than scoring it as a refusal.
+    """
     spent: list[Usage] = []
     recorder = AnswerRecorder(model(spent.append))
     return Run(label, model_name, ran_on, tuple(_run_case(case, recorder, spent) for case in cases))
@@ -106,7 +111,9 @@ def _run_case(case: Case, recorder: AnswerRecorder, spent: list[Usage]) -> CaseR
     try:
         actual, unclear = _read(case, recorder, content)
         refused = False
-    except InvalidRequest:
+    except InvalidRequest as refusal:
+        if isinstance(refusal.__cause__, ModelUnavailable):
+            raise refusal.__cause__ from None
         actual, unclear, refused = {}, (), True
     seconds = round(time.perf_counter() - started, 3)
 

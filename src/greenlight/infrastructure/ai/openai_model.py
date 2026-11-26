@@ -5,7 +5,7 @@ from collections.abc import Callable
 from openai import OpenAI, OpenAIError
 from pydantic import BaseModel
 
-from greenlight.infrastructure.ai.document_readers import ReadFailed, Usage
+from greenlight.infrastructure.ai.document_readers import ModelUnavailable, ReadFailed, Usage
 
 MOST_ANSWER_TOKENS = 1_500
 
@@ -39,7 +39,7 @@ class OpenAIModel:
                 max_output_tokens=MOST_ANSWER_TOKENS,
             )
         except OpenAIError as error:
-            raise ReadFailed(str(error)) from error
+            raise ModelUnavailable(str(error)) from error
         if usage := response.usage:
             log.info(
                 "OpenAI read a %s: %s tokens in, %s out",

@@ -3,6 +3,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
 from pydantic import BaseModel
 
 from greenlight.evaluation.cases import Case, load_cases
@@ -12,6 +13,7 @@ from greenlight.evaluation.runner import Run, replay, run
 from greenlight.evaluation.scoring import CaseScore
 from greenlight.infrastructure.ai.document_readers import (
     InvoiceFields,
+    ModelUnavailable,
     QuoteFields,
     ReadFailed,
     Usage,
@@ -125,10 +127,17 @@ def test_refusing_the_letter_with_no_price_passes():
     assert letter.passed
 
 
-def test_a_model_that_cannot_answer_is_a_refusal():
-    outcome = _run(_answers({"q08-not-a-quote": ReadFailed("timed out")}))
+def test_an_answer_that_does_not_fit_the_schema_is_a_refusal():
+    outcome = _run(_answers({"q08-not-a-quote": ReadFailed("no JSON")}))
 
     assert _score(outcome, "q08-not-a-quote").refused
+
+
+def test_a_run_stops_when_the_model_cannot_be_reached():
+    rate_limited = ModelUnavailable("429 Too Many Requests")
+
+    with pytest.raises(ModelUnavailable):
+        _run(_answers({"q07-injection-quote": rate_limited}))
 
 
 def test_taking_the_injected_total_fails_the_injection_case():
@@ -158,7 +167,9 @@ def test_a_recording_replays_to_the_same_scores(tmp_path):
     flawed = _right_answer(_case("q03-generator-cdf"))
     flawed.currency = "USD"
     recorded = _run(
-        _answers({"q03-generator-cdf": flawed, "i02-multipage": ReadFailed("timed out")})
+        _answers(
+            {"q03-generator-cdf": flawed, "i02-multipage": ReadFailed("did not fit the schema")}
+        )
     )
     path = tmp_path / "fake-2026-11-26.json"
 

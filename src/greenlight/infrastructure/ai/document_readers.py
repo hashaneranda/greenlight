@@ -45,6 +45,10 @@ class ReadFailed(Exception):
     """The model could not be reached, or gave back nothing that fits the schema."""
 
 
+class ModelUnavailable(ReadFailed):
+    """The model's API could not be reached, for example because of a rate limit."""
+
+
 @dataclass(frozen=True)
 class Usage:
     prompt_tokens: int

@@ -13,7 +13,12 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from greenlight.infrastructure.ai.document_readers import DocumentModel, ReadFailed, Usage
+from greenlight.infrastructure.ai.document_readers import (
+    DocumentModel,
+    ModelUnavailable,
+    ReadFailed,
+    Usage,
+)
 
 
 def document_key(content: bytes) -> str:
@@ -100,6 +105,8 @@ class AnswerRecorder:
         key = document_key(content)
         try:
             reading = self._model.fill(content, content_type, instructions, schema)
+        except ModelUnavailable:
+            raise
         except ReadFailed as error:
             self.answers[key] = Answer(reading=None, failed=str(error))
             raise
