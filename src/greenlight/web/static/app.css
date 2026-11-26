@@ -517,14 +517,23 @@ td a { font-weight: 700; }
 /* Request page */
 
 .request-hero { margin: var(--s-2) 0 var(--s-8); }
-.request-hero .ref { color: var(--muted); font-weight: 700; font-size: var(--step--1); letter-spacing: .02em; }
-.request-hero h1 { margin: var(--s-2) 0 var(--s-5); max-width: 18ch; }
+.request-hero .ref { margin-bottom: var(--s-3); color: var(--muted); font-weight: 700; font-size: var(--step--1); letter-spacing: .02em; }
+.request-hero h1 { margin-top: var(--s-5); max-width: 24ch; font-size: var(--step-3); line-height: 1.05; text-transform: none; }
+.request-hero .supplier { margin-top: var(--s-2); font-size: var(--step-1); }
 .hero-status { display: inline-flex; align-items: center; gap: var(--s-3); margin-top: var(--s-5); }
 
 .facts { display: grid; grid-template-columns: minmax(104px, auto) 1fr; margin: 0; }
 .facts dt, .facts dd { margin: 0; padding: var(--s-3) 0; border-top: 1px solid var(--line); }
 .facts dt { padding-right: var(--s-4); color: var(--muted); }
 .facts > :nth-child(1), .facts > :nth-child(2) { border-top: 0; }
+.facts dd:has(.file) { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-block: var(--s-2); }
+.file {
+  display: inline-flex; align-items: center; gap: var(--s-2); min-height: 40px; padding: 0 var(--s-4);
+  border-radius: var(--r-pill); background: var(--sunken); color: var(--ink); font-weight: 700; text-decoration: none;
+  overflow-wrap: anywhere; transition: background-color .15s;
+}
+.file:hover { background: var(--sunken-2); }
+.file svg { width: 18px; height: 18px; flex: none; }
 
 .track { list-style: none; display: grid; margin: 0; padding: var(--s-1) 0 0; }
 .track li { position: relative; display: grid; grid-template-columns: 30px 1fr; column-gap: var(--s-4); padding-bottom: var(--s-5); }
@@ -858,6 +867,8 @@ body.focus { padding-bottom: 0; }
   .request-layout { grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); column-gap: var(--s-10); align-items: start; }
   .request-layout > .side { display: block; grid-column: 2; grid-row: 1 / span 3; position: sticky; top: var(--s-6); }
   .decision { position: static; grid-template-columns: 1fr; margin: 0 0 var(--s-6); }
+  .request-layout .decision .covering { order: -2; }
+  .request-layout .decision form { order: -1; }
   .home-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); column-gap: var(--s-10); align-items: start; }
 
   dialog.sheet-dialog { margin: auto; padding-bottom: var(--s-6); border-radius: var(--r-card); }
