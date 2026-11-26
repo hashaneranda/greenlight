@@ -1,9 +1,0 @@
-{% extends "base.html" %}
-{% block title %}Something went wrong{% endblock %}
-{% block content %}
-<div class="card">
-  <h1>{{ "Not allowed" if status_code == 403 else "Not found" if status_code == 404 else "Something went wrong" }}</h1>
-  <p>{{ message }}</p>
-  <a class="button" href="/">Back to home</a>
-</div>
-{% endblock %}

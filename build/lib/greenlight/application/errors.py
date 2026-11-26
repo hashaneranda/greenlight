@@ -1,2 +1,0 @@
-class NotFound(LookupError):
-    pass
