@@ -17,7 +17,7 @@ GROQ_URL = "https://api.groq.com/openai/v1"
 MOST_PAGES_AS_IMAGES = 3
 TEXT_WORTH_READING = 40
 MOST_TEXT = 12_000
-MOST_ANSWER_TOKENS = 1_500
+MOST_ANSWER_TOKENS = 900
 
 log = logging.getLogger(__name__)
 
