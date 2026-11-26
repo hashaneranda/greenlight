@@ -3,6 +3,7 @@
 The prompts and schemas live here; a provider only has to fill a schema from a document.
 """
 
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Literal, Protocol
@@ -42,6 +43,12 @@ could not read with certainty."""
 
 class ReadFailed(Exception):
     """The model could not be reached, or gave back nothing that fits the schema."""
+
+
+@dataclass(frozen=True)
+class Usage:
+    prompt_tokens: int
+    completion_tokens: int
 
 
 class DocumentModel(Protocol):
