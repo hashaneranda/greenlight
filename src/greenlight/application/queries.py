@@ -1,15 +1,15 @@
-from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
+from greenlight.application.loading import active_person, request_by_reference
 from greenlight.application.ports import AuditEntry, Clock, UnitOfWork
-from greenlight.application.use_cases import NotFound
-from greenlight.domain.catalog import Category, Tag
+from greenlight.domain.catalog import Category, Tag, TagKind
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import NotPermitted
-from greenlight.domain.people import Department, Employee, Role
+from greenlight.domain.people import Department, Employee
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 from greenlight.domain.visibility import can_view
 
@@ -42,11 +42,17 @@ class RequestView:
 @dataclass
 class Breakdown:
     label: str
+    budget_usd: Decimal | None = None
     committed_usd: Decimal = ZERO
     paid_usd: Decimal = ZERO
     pending_usd: Decimal = ZERO
     count: int = 0
-    budget_usd: Decimal | None = None
+
+    def add(self, request: SpendRequest) -> None:
+        self.count += 1
+        self.committed_usd += request.committed_usd
+        self.paid_usd += request.paid_usd
+        self.pending_usd += request.awaiting_approval_usd
 
 
 @dataclass
@@ -55,6 +61,7 @@ class Dashboard:
     waiting_for_me: list[SpendRequest]
     approved_usd: Decimal
     paid_usd: Decimal
+    outstanding_usd: Decimal
     pending_usd: Decimal
     by_category: list[Breakdown]
     by_department: list[Breakdown]
@@ -62,19 +69,34 @@ class Dashboard:
     by_trip: list[Breakdown]
     recent: list[SpendRequest] = field(default_factory=list)
 
+
+@dataclass
+class _ViewerContext:
+    viewer: Employee
+    today: date
+    headed_department_ids: set[UUID]
+    covers_held: list[Cover]
+
     @property
-    def outstanding_usd(self) -> Decimal:
-        return self.approved_usd - self.paid_usd
+    def covering_for_ids(self) -> set[UUID]:
+        return {cover.absent_id for cover in self.covers_held}
+
+    def can_view(self, request: SpendRequest) -> bool:
+        return can_view(
+            self.viewer,
+            request,
+            headed_department_ids=self.headed_department_ids,
+            covering_for_ids=self.covering_for_ids,
+        )
+
+    def can_decide(self, request: SpendRequest) -> bool:
+        return request.can_be_decided_by(self.viewer, self.today, self.covers_held)
 
 
 class SpendQueries:
     def __init__(self, unit_of_work: Callable[[], UnitOfWork], clock: Clock):
         self._unit_of_work = unit_of_work
         self._clock = clock
-
-    def lookups(self) -> Lookups:
-        with self._unit_of_work() as uow:
-            return _lookups(uow)
 
     def person(self, person_id: UUID) -> Employee | None:
         with self._unit_of_work() as uow:
@@ -86,7 +108,11 @@ class SpendQueries:
 
     def people(self) -> list[Employee]:
         with self._unit_of_work() as uow:
-            return sorted(uow.people.active(), key=lambda person: person.name)
+            return uow.people.active()
+
+    def lookups(self) -> Lookups:
+        with self._unit_of_work() as uow:
+            return _lookups(uow)
 
     def form_options(self) -> tuple[list[Category], list[Tag], list[str]]:
         with self._unit_of_work() as uow:
@@ -100,12 +126,11 @@ class SpendQueries:
 
     def waiting_for(self, viewer_id: UUID) -> list[SpendRequest]:
         with self._unit_of_work() as uow:
-            return self._waiting_for(uow, viewer_id)
+            return _waiting(uow, self._context(uow, viewer_id))
 
     def my_requests(self, viewer_id: UUID) -> list[SpendRequest]:
         with self._unit_of_work() as uow:
-            mine = [r for r in uow.requests.all() if r.requester_id == viewer_id]
-            return sorted(mine, key=lambda r: r.submitted_at, reverse=True)
+            return _newest_first(uow.requests.raised_by(viewer_id))
 
     def visible_requests(
         self,
@@ -115,150 +140,116 @@ class SpendQueries:
         tag_id: UUID | None = None,
         search: str = "",
     ) -> list[SpendRequest]:
+        needle = search.strip().lower()
         with self._unit_of_work() as uow:
-            viewer = uow.people.get(viewer_id)
-            requests = self._visible(uow, viewer)
-            if status:
-                requests = [r for r in requests if r.status == status]
-            if tag_id:
-                requests = [r for r in requests if r.tag_id == tag_id]
-            if search.strip():
-                needle = search.strip().lower()
-                requests = [
-                    r for r in requests if needle in f"{r.reference} {r.title} {r.supplier}".lower()
-                ]
-            return sorted(requests, key=lambda r: r.submitted_at, reverse=True)
+            context = self._context(uow, viewer_id)
+            candidates = uow.requests.with_status(status) if status else uow.requests.all()
+            return _newest_first(
+                r
+                for r in candidates
+                if context.can_view(r)
+                and (tag_id is None or r.tag_id == tag_id)
+                and (not needle or needle in f"{r.reference} {r.title} {r.supplier}".lower())
+            )
 
     def request_view(self, viewer_id: UUID, reference: str) -> RequestView:
-        today = self._clock.now().date()
         with self._unit_of_work() as uow:
-            viewer = uow.people.get(viewer_id)
-            request = uow.requests.by_reference(reference.upper())
-            if request is None:
-                raise NotFound(f"No request {reference}.")
-            if not can_view(viewer, request, **self._viewer_scope(uow, viewer)):
+            context = self._context(uow, viewer_id)
+            viewer = context.viewer
+            request = request_by_reference(uow, reference)
+            if not context.can_view(request):
                 raise NotPermitted("You do not have access to this request.")
 
             step = request.pending_step
-            cover = _cover_for(uow, step.approver_id, viewer.id, today) if step else None
-            paid_or_closed = request.payments or request.status == RequestStatus.WITHDRAWN
+            covering_for = (
+                uow.people.get(step.approver_id)
+                if step and step.approver_id in context.covering_for_ids
+                else None
+            )
             return RequestView(
                 request=request,
                 lookups=_lookups(uow),
                 history=uow.audit.for_request(request.id),
-                can_decide=request.can_be_decided_by(viewer, cover, today),
-                can_revise=viewer.id == request.requester_id and not paid_or_closed,
-                can_withdraw=(
-                    viewer.id == request.requester_id
-                    and request.status in (RequestStatus.PENDING, RequestStatus.APPROVED)
-                    and not request.payments
-                ),
-                can_record_payment=(
-                    viewer.has_role(Role.FINANCE) and request.status == RequestStatus.APPROVED
-                ),
-                covering_for=uow.people.get(cover.absent_id) if cover else None,
+                can_decide=context.can_decide(request),
+                can_revise=request.can_be_revised_by(viewer),
+                can_withdraw=request.can_be_withdrawn_by(viewer),
+                can_record_payment=request.can_be_paid_by(viewer),
+                covering_for=covering_for,
             )
 
     def dashboard(self, viewer_id: UUID) -> Dashboard:
         with self._unit_of_work() as uow:
-            viewer = uow.people.get(viewer_id)
+            context = self._context(uow, viewer_id)
+            visible = [r for r in uow.requests.all() if context.can_view(r)]
+            live = [r for r in visible if r.is_live]
             lookups = _lookups(uow)
-            visible = self._visible(uow, viewer)
-            scope = "Whole company" if viewer.sees_all_spend else "Spend you can see"
-            live = [
-                r for r in visible if r.status in (RequestStatus.PENDING, RequestStatus.APPROVED)
-            ]
+            projects = {k: t for k, t in lookups.tags.items() if t.kind == TagKind.PROJECT}
+            trips = {k: t for k, t in lookups.tags.items() if t.kind == TagKind.TRIP}
 
-            def label_for(mapping, key, fallback="Unassigned"):
-                item = mapping.get(key)
-                return getattr(item, "name", fallback) if item else fallback
-
-            projects = {k: t for k, t in lookups.tags.items() if t.kind == "project"}
-            trips = {k: t for k, t in lookups.tags.items() if t.kind == "trip"}
             return Dashboard(
-                scope=scope,
-                waiting_for_me=self._waiting_for(uow, viewer_id),
-                approved_usd=_sum(r.approved_total_usd for r in live if r.approved_total_usd),
+                scope="Whole company" if context.viewer.sees_all_spend else "Spend you can see",
+                waiting_for_me=_waiting(uow, context, visible),
+                approved_usd=_sum(r.committed_usd for r in live),
                 paid_usd=_sum(r.paid_usd for r in live),
-                pending_usd=_sum(r.total_usd for r in live if r.status == RequestStatus.PENDING),
-                by_category=_breakdown(
-                    live, lambda r: label_for(lookups.categories, r.category_id)
-                ),
+                outstanding_usd=_sum(r.outstanding_usd for r in live),
+                pending_usd=_sum(r.awaiting_approval_usd for r in live),
+                by_category=_breakdown(live, lambda r: _name(lookups.categories, r.category_id)),
                 by_department=_breakdown(
-                    live, lambda r: label_for(lookups.departments, r.department_id)
+                    live, lambda r: _name(lookups.departments, r.department_id)
                 ),
                 by_project=_breakdown(
-                    [r for r in live if r.tag_id in projects],
+                    (r for r in live if r.tag_id in projects),
                     lambda r: projects[r.tag_id].name,
                     budgets={t.name: t.budget_usd for t in projects.values()},
                 ),
                 by_trip=_breakdown(
-                    [r for r in live if r.tag_id in trips], lambda r: trips[r.tag_id].name
+                    (r for r in live if r.tag_id in trips), lambda r: trips[r.tag_id].name
                 ),
-                recent=sorted(visible, key=lambda r: r.submitted_at, reverse=True)[:8],
+                recent=_newest_first(visible)[:8],
             )
 
-    def finance_ledger(self, viewer_id: UUID) -> list[SpendRequest]:
+    def payments_ledger(self, viewer_id: UUID) -> list[SpendRequest]:
         with self._unit_of_work() as uow:
-            viewer = uow.people.get(viewer_id)
-            if not viewer.sees_all_spend:
-                raise NotPermitted("The payments view is for finance.")
-            approved = [r for r in uow.requests.all() if r.status == RequestStatus.APPROVED]
+            if not active_person(uow, viewer_id).sees_all_spend:
+                raise NotPermitted("The payments view is for finance and the COO.")
+            approved = uow.requests.with_status(RequestStatus.APPROVED)
             return sorted(approved, key=lambda r: (r.outstanding_usd == 0, r.decided_at))
 
     def covers_for(self, viewer_id: UUID) -> tuple[list[Cover], list[Cover]]:
-        """Cover the viewer has arranged, and cover the viewer is providing."""
+        """Cover the viewer has arranged for themselves, and cover they are giving others."""
         today = self._clock.now().date()
         with self._unit_of_work() as uow:
-            relevant = [
-                c
-                for c in uow.covers.for_absent(viewer_id)
-                if c.cancelled_at is None and c.ends_on >= today
+            arranged = [
+                c for c in uow.covers.for_absent(viewer_id) if c.is_current_or_upcoming(today)
             ]
-            providing = [c for c in uow.covers.active_on(today) if c.covering_id == viewer_id]
-            return relevant, providing
+            return arranged, uow.covers.held_by(viewer_id, today)
 
-    def audit_trail(self, viewer_id: UUID) -> list[AuditEntry]:
+    def audit_log(self, viewer_id: UUID) -> list[AuditEntry]:
         with self._unit_of_work() as uow:
-            viewer = uow.people.get(viewer_id)
-            if not (viewer.has_role(Role.ADMIN) or viewer.has_role(Role.FINANCE)):
+            if not active_person(uow, viewer_id).can_read_audit_log:
                 raise NotPermitted("The audit log is for finance and admins.")
             return list(reversed(uow.audit.all()))
 
-    def _waiting_for(self, uow: UnitOfWork, viewer_id: UUID) -> list[SpendRequest]:
+    def _context(self, uow: UnitOfWork, viewer_id: UUID) -> _ViewerContext:
         today = self._clock.now().date()
-        viewer = uow.people.get(viewer_id)
-        covering_for = {
-            c.absent_id for c in uow.covers.active_on(today) if c.covering_id == viewer_id
-        }
-        waiting = []
-        for request in uow.requests.all():
-            step = request.pending_step
-            if step is None:
-                continue
-            cover = (
-                _cover_for(uow, step.approver_id, viewer_id, today)
-                if step.approver_id in covering_for
-                else None
-            )
-            if request.can_be_decided_by(viewer, cover, today):
-                waiting.append(request)
-        return sorted(waiting, key=lambda r: r.pending_step.activated_at)
-
-    def _visible(self, uow: UnitOfWork, viewer: Employee) -> list[SpendRequest]:
-        scope = self._viewer_scope(uow, viewer)
-        return [r for r in uow.requests.all() if can_view(viewer, r, **scope)]
-
-    def _viewer_scope(self, uow: UnitOfWork, viewer: Employee) -> dict:
-        today = self._clock.now().date()
-        return {
-            "headed_department_ids": {
+        viewer = active_person(uow, viewer_id)
+        return _ViewerContext(
+            viewer=viewer,
+            today=today,
+            headed_department_ids={
                 d.id for d in uow.people.departments() if d.head_id == viewer.id
             },
-            "covering_for_ids": {
-                c.absent_id for c in uow.covers.active_on(today) if c.covering_id == viewer.id
-            },
-        }
+            covers_held=uow.covers.held_by(viewer.id, today),
+        )
+
+
+def _waiting(
+    uow: UnitOfWork, context: _ViewerContext, candidates: Iterable[SpendRequest] | None = None
+) -> list[SpendRequest]:
+    if candidates is None:
+        candidates = uow.requests.with_status(RequestStatus.PENDING)
+    waiting = [r for r in candidates if context.can_decide(r)]
+    return sorted(waiting, key=lambda r: r.pending_step.activated_at)
 
 
 def _lookups(uow: UnitOfWork) -> Lookups:
@@ -270,15 +261,13 @@ def _lookups(uow: UnitOfWork) -> Lookups:
     )
 
 
-def _cover_for(uow: UnitOfWork, absent_id: UUID, covering_id: UUID, today) -> Cover | None:
-    return next(
-        (
-            c
-            for c in uow.covers.for_absent(absent_id)
-            if c.covering_id == covering_id and c.is_active_on(today)
-        ),
-        None,
-    )
+def _name(items: dict, key: UUID | None) -> str:
+    item = items.get(key)
+    return item.name if item else "Unassigned"
+
+
+def _newest_first(requests: Iterable[SpendRequest]) -> list[SpendRequest]:
+    return sorted(requests, key=lambda r: r.submitted_at, reverse=True)
 
 
 def _sum(values: Iterable[Decimal]) -> Decimal:
@@ -286,22 +275,13 @@ def _sum(values: Iterable[Decimal]) -> Decimal:
 
 
 def _breakdown(
-    requests: list[SpendRequest],
-    key: Callable[[SpendRequest], str],
+    requests: Iterable[SpendRequest],
+    label_of: Callable[[SpendRequest], str],
     budgets: dict[str, Decimal | None] | None = None,
 ) -> list[Breakdown]:
-    groups: dict[str, Breakdown] = defaultdict(lambda: Breakdown(label=""))
+    budgets = budgets or {}
+    groups: dict[str, Breakdown] = {}
     for request in requests:
-        label = key(request)
-        group = groups[label]
-        group.label = label
-        group.count += 1
-        if request.status == RequestStatus.APPROVED:
-            group.committed_usd += request.approved_total_usd or ZERO
-            group.paid_usd += request.paid_usd
-        else:
-            group.pending_usd += request.total_usd
-    for label, budget in (budgets or {}).items():
-        if label in groups:
-            groups[label].budget_usd = budget
+        label = label_of(request)
+        groups.setdefault(label, Breakdown(label, budget_usd=budgets.get(label))).add(request)
     return sorted(groups.values(), key=lambda g: g.committed_usd + g.pending_usd, reverse=True)

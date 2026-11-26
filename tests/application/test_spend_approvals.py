@@ -150,10 +150,10 @@ def test_price_rise_after_approval_restarts_approval(company, uow, approvals):
 def test_reminders_go_to_approvers_who_have_not_acted(company, uow, approvals, clock):
     approvals.submit(company.sam.id, details(company.general), [PDF])
 
-    assert approvals.send_reminders(older_than_hours=24) == 0
+    assert approvals.send_reminders(timedelta(hours=24)) == 0
     clock.moment = NOW + timedelta(hours=25)
-    assert approvals.send_reminders(older_than_hours=24) == 1
-    assert approvals.send_reminders(older_than_hours=24) == 0
+    assert approvals.send_reminders(timedelta(hours=24)) == 1
+    assert approvals.send_reminders(timedelta(hours=24)) == 0
     assert uow.outbox.sent[-1].subject.startswith("Reminder")
 
 

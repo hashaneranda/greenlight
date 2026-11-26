@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from difflib import SequenceMatcher
 
-from greenlight.domain.money import round_money
+from greenlight.domain.money import Money
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 
 _COMPANY_SUFFIXES = re.compile(
@@ -27,6 +27,10 @@ class Invoice:
     invoice_date: date | None = None
     purchase_reference: str = ""
     lines: tuple[InvoiceLine, ...] = field(default_factory=tuple)
+
+    @property
+    def total_money(self) -> Money:
+        return Money(self.total, self.currency)
 
 
 @dataclass(frozen=True)
@@ -54,14 +58,14 @@ def _supplier_similarity(left: str, right: str) -> float:
 
 def _expected_charge_usd(request: SpendRequest) -> Decimal:
     if request.is_recurring:
-        return round_money(request.amount * request.usd_rate)
+        return request.unit_price.in_usd(request.usd_rate)
     return request.outstanding_usd
 
 
 def rank_matches(
     invoice: Invoice, candidates: list[SpendRequest], usd_rate: Decimal, limit: int = 3
 ) -> list[InvoiceMatch]:
-    invoice_usd = round_money(invoice.total * usd_rate)
+    invoice_usd = invoice.total_money.in_usd(usd_rate)
     matches = []
 
     for request in candidates:

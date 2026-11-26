@@ -28,6 +28,12 @@ class ApprovalRequested(DomainEvent):
 
 
 @dataclass(frozen=True)
+class ApprovalReminded(DomainEvent):
+    approver_id: UUID
+    stage_label: str
+
+
+@dataclass(frozen=True)
 class StepApproved(DomainEvent):
     on_behalf_of_id: UUID | None
     stages: list[str]

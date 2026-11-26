@@ -10,7 +10,7 @@ GENESIS = "0" * 64
 def _canonical_time(moment: datetime) -> str:
     if moment.tzinfo is not None:
         moment = moment.astimezone(UTC).replace(tzinfo=None)
-    return moment.replace(microsecond=0).isoformat()
+    return moment.isoformat()
 
 
 def fingerprint(entry: AuditEntry) -> str:

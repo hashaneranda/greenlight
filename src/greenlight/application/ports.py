@@ -8,8 +8,8 @@ from greenlight.domain.approval_policy import ApprovalPolicy
 from greenlight.domain.catalog import Category, Tag
 from greenlight.domain.cover import Cover
 from greenlight.domain.invoice_matching import Invoice
-from greenlight.domain.people import Department, Employee, Site
-from greenlight.domain.spend_request import SpendRequest
+from greenlight.domain.people import Department, Employee, Role, Site
+from greenlight.domain.spend_request import RequestStatus, SpendRequest
 
 
 class SpendRequests(Protocol):
@@ -23,6 +23,10 @@ class SpendRequests(Protocol):
 
     def all(self) -> list[SpendRequest]: ...
 
+    def raised_by(self, requester_id: UUID) -> list[SpendRequest]: ...
+
+    def with_status(self, status: RequestStatus) -> list[SpendRequest]: ...
+
 
 class People(Protocol):
     def get(self, employee_id: UUID) -> Employee | None: ...
@@ -30,6 +34,8 @@ class People(Protocol):
     def by_email(self, email: str) -> Employee | None: ...
 
     def active(self) -> list[Employee]: ...
+
+    def with_role(self, role: Role) -> list[Employee]: ...
 
     def all(self) -> list[Employee]: ...
 
@@ -66,6 +72,8 @@ class Covers(Protocol):
     def for_absent(self, employee_id: UUID) -> list[Cover]: ...
 
     def active_on(self, day: date) -> list[Cover]: ...
+
+    def held_by(self, covering_id: UUID, day: date) -> list[Cover]: ...
 
 
 @dataclass

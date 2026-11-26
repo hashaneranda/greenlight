@@ -110,7 +110,7 @@ class TestDeciding:
         request = submitted(company, company.sam, company.general)
         company.sam.manager_id = company.sam.id
 
-        assert not request.can_be_decided_by(company.sam, None, TODAY)
+        assert not request.can_be_decided_by(company.sam, TODAY)
 
     def test_rejection_needs_a_reason(self, company):
         request = submitted(company, company.sam, company.general)
@@ -155,7 +155,7 @@ class TestCover:
         cover = self.nadia_away(company, covering=company.tom)
         request.pull_events()
 
-        request.approve(company.tom, NOW, cover=cover)
+        request.approve(company.tom, NOW, covers_held=[cover])
 
         approved = request.pull_events()[0]
         assert request.status == RequestStatus.APPROVED
@@ -167,21 +167,21 @@ class TestCover:
         cover = self.nadia_away(company, covering=company.tom)
 
         assert request.pending_step.approver_id == company.nadia.id
-        assert not request.can_be_decided_by(company.tom, cover, TODAY)
+        assert not request.can_be_decided_by(company.tom, TODAY, [cover])
 
     def test_cover_does_not_let_one_person_fill_two_steps(self, company):
         request = submitted(company, company.sam, company.general, "8000")
         cover = self.nadia_away(company, covering=company.priya)
         request.approve(company.priya, NOW)
 
-        assert not request.can_be_decided_by(company.priya, cover, TODAY)
+        assert not request.can_be_decided_by(company.priya, TODAY, [cover])
 
     def test_cover_only_works_on_its_dates(self, company):
         request = submitted(company, company.sam, company.general, "8000")
         request.approve(company.priya, NOW)
         cover = self.nadia_away(company, covering=company.tom)
 
-        assert not request.can_be_decided_by(company.tom, cover, TODAY + timedelta(days=30))
+        assert not request.can_be_decided_by(company.tom, TODAY + timedelta(days=30), [cover])
 
 
 class TestChangesAfterApproval:

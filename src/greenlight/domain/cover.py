@@ -59,6 +59,9 @@ class Cover:
     def is_active_on(self, day: date) -> bool:
         return self.cancelled_at is None and self.starts_on <= day <= self.ends_on
 
+    def is_current_or_upcoming(self, today: date) -> bool:
+        return self.cancelled_at is None and self.ends_on >= today
+
     def overlaps(self, starts_on: date, ends_on: date) -> bool:
         return self.cancelled_at is None and self.starts_on <= ends_on and self.ends_on >= starts_on
 

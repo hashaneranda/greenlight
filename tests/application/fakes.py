@@ -29,6 +29,12 @@ class InMemoryRequests:
     def all(self):
         return list(self.items.values())
 
+    def raised_by(self, requester_id):
+        return [r for r in self.items.values() if r.requester_id == requester_id]
+
+    def with_status(self, status):
+        return [r for r in self.items.values() if r.status == status]
+
 
 class InMemoryPeople:
     def __init__(self, people: list[Employee], departments: list[Department] = ()):
@@ -46,6 +52,9 @@ class InMemoryPeople:
 
     def all(self):
         return list(self.items.values())
+
+    def with_role(self, role):
+        return [p for p in self.active() if p.has_role(role)]
 
     def add(self, employee):
         self.items[employee.id] = employee
@@ -104,6 +113,9 @@ class InMemoryCovers:
 
     def active_on(self, day: date):
         return [c for c in self.items.values() if c.is_active_on(day)]
+
+    def held_by(self, covering_id, day: date):
+        return [c for c in self.active_on(day) if c.covering_id == covering_id]
 
 
 class InMemoryAudit:

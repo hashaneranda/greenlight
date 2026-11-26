@@ -16,7 +16,7 @@ def can_view(
 
     people_on_route = {step.approver_id for step in request.steps}
     people_on_route |= {step.decided_by_id for step in request.steps if step.decided_by_id}
-    if viewer.id in people_on_route or people_on_route & set(covering_for_ids):
+    if viewer.id in people_on_route or people_on_route & covering_for_ids:
         return True
 
     return request.department_id in headed_department_ids and not request.is_confidential

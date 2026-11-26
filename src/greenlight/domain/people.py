@@ -26,6 +26,14 @@ class Employee:
         return role in self.roles
 
     @property
+    def can_record_payments(self) -> bool:
+        return Role.FINANCE in self.roles
+
+    @property
+    def can_read_audit_log(self) -> bool:
+        return bool(self.roles & {Role.FINANCE, Role.ADMIN})
+
+    @property
     def sees_all_spend(self) -> bool:
         return bool(self.roles & {Role.FINANCE, Role.EXECUTIVE_APPROVER, Role.ADMIN})
 

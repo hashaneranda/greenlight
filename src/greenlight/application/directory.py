@@ -24,4 +24,4 @@ class PeopleDirectory:
         return self._first_with(Role.EXECUTIVE_APPROVER)
 
     def _first_with(self, role: Role) -> Employee | None:
-        return next((person for person in self._people.active() if person.has_role(role)), None)
+        return next(iter(self._people.with_role(role)), None)

@@ -1,6 +1,7 @@
 import enum
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -9,7 +10,7 @@ from greenlight.domain.approval_policy import ApprovalStage, Route
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import InvalidRequest, InvalidState, NotPermitted
 from greenlight.domain.money import Money, round_money
-from greenlight.domain.people import Employee, Role
+from greenlight.domain.people import Employee
 
 MAX_TERM_MONTHS = 120
 
@@ -36,7 +37,20 @@ class BillingPeriod(enum.StrEnum):
 
     @property
     def months(self) -> int:
-        return {"monthly": 1, "quarterly": 3, "annually": 12}[self.value]
+        return _MONTHS_PER_PERIOD[self]
+
+
+_MONTHS_PER_PERIOD = {
+    BillingPeriod.MONTHLY: 1,
+    BillingPeriod.QUARTERLY: 3,
+    BillingPeriod.ANNUALLY: 12,
+}
+
+
+def number_of_payments(billing_period: BillingPeriod | None, term_months: int | None) -> int:
+    if billing_period is None or not term_months:
+        return 1
+    return -(-term_months // billing_period.months)
 
 
 @dataclass(frozen=True)
@@ -58,9 +72,7 @@ class SpendDetails:
 
     @property
     def number_of_payments(self) -> int:
-        if self.billing_period is None or not self.term_months:
-            return 1
-        return -(-self.term_months // self.billing_period.months)
+        return number_of_payments(self.billing_period, self.term_months)
 
     def validate(self, *, has_quote: bool) -> None:
         if not self.title.strip() or not self.supplier.strip():
@@ -112,6 +124,10 @@ class ApprovalStep:
     @property
     def decided_on_behalf(self) -> bool:
         return self.decided_by_id is not None and self.decided_by_id != self.approver_id
+
+    @property
+    def on_behalf_of_id(self) -> UUID | None:
+        return self.approver_id if self.decided_on_behalf else None
 
     @property
     def is_open(self) -> bool:
@@ -189,7 +205,7 @@ class SpendRequest:
             supplier=self.supplier,
             justification=self.justification,
             category_id=self.category_id,
-            amount=Money(self.amount, self.currency),
+            amount=self.unit_price,
             tag_id=self.tag_id,
             billing_period=self.billing_period,
             term_months=self.term_months,
@@ -202,8 +218,16 @@ class SpendRequest:
         return self.billing_period is not None
 
     @property
+    def unit_price(self) -> Money:
+        return Money(self.amount, self.currency)
+
+    @property
+    def is_live(self) -> bool:
+        return self.status in (RequestStatus.PENDING, RequestStatus.APPROVED)
+
+    @property
     def total(self) -> Money:
-        return Money(self.amount, self.currency).times(self.details.number_of_payments)
+        return self.unit_price.times(number_of_payments(self.billing_period, self.term_months))
 
     @property
     def total_usd(self) -> Decimal:
@@ -217,7 +241,15 @@ class SpendRequest:
     def outstanding_usd(self) -> Decimal:
         if self.status != RequestStatus.APPROVED:
             return Decimal("0")
-        return max(Decimal("0"), (self.approved_total_usd or Decimal("0")) - self.paid_usd)
+        return max(Decimal("0"), self.approved_total_usd - self.paid_usd)
+
+    @property
+    def committed_usd(self) -> Decimal:
+        return self.approved_total_usd if self.status == RequestStatus.APPROVED else Decimal("0")
+
+    @property
+    def awaiting_approval_usd(self) -> Decimal:
+        return self.total_usd if self.status == RequestStatus.PENDING else Decimal("0")
 
     @property
     def current_steps(self) -> list[ApprovalStep]:
@@ -259,19 +291,19 @@ class SpendRequest:
         )
         self._activate(self.current_steps[0], now)
 
-    def can_be_decided_by(self, actor: Employee, cover: Cover | None, today: date) -> bool:
+    def can_be_decided_by(
+        self, actor: Employee, today: date, covers_held: Iterable[Cover] = ()
+    ) -> bool:
         step = self.pending_step
-        if step is None or self.status != RequestStatus.PENDING:
-            return False
-        if actor.id == self.requester_id:
+        if step is None or actor.id == self.requester_id:
             return False
         if actor.id == step.approver_id:
             return True
-        covering = (
-            cover is not None
+        covering = any(
+            cover.covering_id == actor.id
             and cover.absent_id == step.approver_id
-            and cover.covering_id == actor.id
             and cover.is_active_on(today)
+            for cover in covers_held
         )
         already_approved_this_revision = any(
             s.decided_by_id == actor.id and s.status == StepStatus.APPROVED
@@ -279,16 +311,34 @@ class SpendRequest:
         )
         return covering and not already_approved_this_revision
 
+    def can_be_withdrawn_by(self, actor: Employee) -> bool:
+        return actor.id == self.requester_id and self.is_live and not self.payments
+
+    def can_be_revised_by(self, actor: Employee) -> bool:
+        return (
+            actor.id == self.requester_id
+            and self.status != RequestStatus.WITHDRAWN
+            and not self.payments
+        )
+
+    def can_be_paid_by(self, actor: Employee) -> bool:
+        return actor.can_record_payments and self.status == RequestStatus.APPROVED
+
     def approve(
-        self, actor: Employee, now: datetime, *, comment: str = "", cover: Cover | None = None
+        self,
+        actor: Employee,
+        now: datetime,
+        *,
+        comment: str = "",
+        covers_held: Iterable[Cover] = (),
     ) -> None:
-        step = self._step_for_decision(actor, now, cover)
+        step = self._step_for_decision(actor, now, covers_held)
         self._close_step(step, actor, StepStatus.APPROVED, comment, now)
         self._record(
             events.StepApproved(
                 self.id,
                 actor.id,
-                on_behalf_of_id=step.approver_id if step.decided_on_behalf else None,
+                on_behalf_of_id=step.on_behalf_of_id,
                 stages=step.stages,
                 comment=step.comment,
             )
@@ -305,11 +355,16 @@ class SpendRequest:
         self._record(events.RequestApproved(self.id, actor.id, total_usd=self.total_usd))
 
     def reject(
-        self, actor: Employee, now: datetime, *, reason: str, cover: Cover | None = None
+        self,
+        actor: Employee,
+        now: datetime,
+        *,
+        reason: str,
+        covers_held: Iterable[Cover] = (),
     ) -> None:
         if not reason.strip():
             raise InvalidRequest("Give a reason so the requester knows what to change.")
-        step = self._step_for_decision(actor, now, cover)
+        step = self._step_for_decision(actor, now, covers_held)
         self._close_step(step, actor, StepStatus.REJECTED, reason, now)
         self._cancel_open_steps()
         self.status = RequestStatus.REJECTED
@@ -318,7 +373,7 @@ class SpendRequest:
             events.RequestRejected(
                 self.id,
                 actor.id,
-                on_behalf_of_id=step.approver_id if step.decided_on_behalf else None,
+                on_behalf_of_id=step.on_behalf_of_id,
                 stages=step.stages,
                 reason=step.comment,
             )
@@ -327,7 +382,7 @@ class SpendRequest:
     def withdraw(self, actor: Employee, now: datetime, reason: str = "") -> None:
         if actor.id != self.requester_id:
             raise NotPermitted("Only the requester can withdraw a request.")
-        if self.status not in (RequestStatus.PENDING, RequestStatus.APPROVED) or self.payments:
+        if not self.can_be_withdrawn_by(actor):
             raise InvalidState("This request can no longer be withdrawn.")
         self._cancel_open_steps()
         self.status = RequestStatus.WITHDRAWN
@@ -395,9 +450,9 @@ class SpendRequest:
         paid_on: date,
         now: datetime,
     ) -> Payment:
-        if not actor.has_role(Role.FINANCE):
+        if not actor.can_record_payments:
             raise NotPermitted("Only finance can record payments.")
-        if self.status != RequestStatus.APPROVED:
+        if not self.can_be_paid_by(actor):
             raise InvalidState("Only approved requests can be paid.")
         if not invoice_reference.strip() or amount.amount <= 0:
             raise InvalidRequest("An invoice reference and a positive amount are required.")
@@ -414,7 +469,7 @@ class SpendRequest:
             recorded_at=now,
         )
         self.payments.append(payment)
-        over_by = self.paid_usd - (self.approved_total_usd or Decimal("0"))
+        over_by = self.paid_usd - self.approved_total_usd
         self._record(
             events.PaymentRecorded(
                 self.id,
@@ -433,7 +488,7 @@ class SpendRequest:
             "supplier": self.supplier,
             "category_id": str(self.category_id),
             "tag_id": str(self.tag_id) if self.tag_id else None,
-            "amount": str(Money(self.amount, self.currency)),
+            "amount": str(self.unit_price),
             "usd_rate": str(self.usd_rate),
             "billing_period": self.billing_period.value if self.billing_period else None,
             "term_months": self.term_months,
@@ -443,15 +498,28 @@ class SpendRequest:
             "confidential": self.is_confidential,
         }
 
+    def remind_approver(self, now: datetime, after: timedelta) -> bool:
+        step = self.pending_step
+        if step is None or now - (step.reminded_at or step.activated_at) < after:
+            return False
+        step.reminded_at = now
+        self._record(
+            events.ApprovalReminded(
+                self.id, None, approver_id=step.approver_id, stage_label=step.stage_label
+            )
+        )
+        return True
+
     def pull_events(self) -> list[events.DomainEvent]:
-        pending = list(getattr(self, "_events", []))
-        self._events = []
-        return pending
+        recorded, self._events = self._recorded_events(), []
+        return recorded
 
     def _record(self, event: events.DomainEvent) -> None:
-        if not hasattr(self, "_events"):
-            self._events = []
-        self._events.append(event)
+        self._events = [*self._recorded_events(), event]
+
+    def _recorded_events(self) -> list[events.DomainEvent]:
+        # Not a dataclass field: the ORM rebuilds aggregates without calling __init__.
+        return getattr(self, "_events", [])
 
     def _activate(self, step: ApprovalStep, now: datetime) -> None:
         step.status = StepStatus.PENDING
@@ -463,11 +531,11 @@ class SpendRequest:
         )
 
     def _step_for_decision(
-        self, actor: Employee, now: datetime, cover: Cover | None
+        self, actor: Employee, now: datetime, covers_held: Iterable[Cover]
     ) -> ApprovalStep:
         if self.pending_step is None:
             raise InvalidState("This request is not waiting for a decision.")
-        if not self.can_be_decided_by(actor, cover, now.date()):
+        if not self.can_be_decided_by(actor, now.date(), covers_held):
             raise NotPermitted("You cannot decide this request.")
         return self.pending_step
 
