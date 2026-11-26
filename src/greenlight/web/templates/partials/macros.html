@@ -6,7 +6,7 @@
   {% elif request.status == "pending" %}
     <span class="status-text pending">With {{ request.pending_step.stage_label if request.pending_step else "approvers" }}</span>
   {% elif request.status == "rejected" %}
-    <span class="status-text rejected">Not approved</span>
+    <span class="status-text rejected">Sent back</span>
   {% else %}
     <span class="status-text {{ request.status }}">{{ request.status|capitalize }}</span>
   {% endif %}

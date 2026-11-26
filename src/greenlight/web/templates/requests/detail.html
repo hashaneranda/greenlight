@@ -26,6 +26,36 @@
   <div class="hero-status">{{ signal(r, user) }}{{ status_text(r) }}</div>
 </header>
 
+{% if user.id == r.requester_id %}
+{% if r.status == "rejected" and r.sent_back_step %}
+<div class="next-step stop">
+  <span class="light rejected" aria-hidden="true"></span>
+  <div>
+    <strong>{{ people.person(r.sent_back_step.decided_by_id).first_name }} sent it back</strong>
+    <p>"{{ r.sent_back_reason }}"</p>
+    {% if view.can_revise %}<a class="button primary" href="/requests/{{ r.reference }}/edit">Change and send again</a>{% endif %}
+  </div>
+</div>
+{% elif r.status == "pending" and r.pending_step %}
+{% set later = r.current_steps|selectattr("status", "equalto", "waiting")|list %}
+<div class="next-step wait">
+  <span class="light pending" aria-hidden="true"></span>
+  <div>
+    <strong>Waiting for {{ people.person(r.pending_step.approver_id).first_name }}, {{ r.pending_step.stage_label }}</strong>
+    <p>{% if later %}Then {% for step in later %}{{ people.person(step.approver_id).first_name }}{{ " and " if not loop.last }}{% endfor %}. {% endif %}You'll get an email as soon as it's decided. Don't buy it yet.</p>
+  </div>
+</div>
+{% elif r.status == "approved" and r.outstanding_usd > 0 %}
+<div class="next-step go">
+  <span class="light approved" aria-hidden="true"></span>
+  <div>
+    <strong>Approved. You can go ahead and buy it.</strong>
+    <p>Ask {{ r.supplier }} to send the invoice to finance and quote {{ r.reference }}. Finance pays it against this approval.</p>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
 <div class="request-layout">
   <div class="side">
     <section class="sheet route" aria-labelledby="route-heading">

@@ -5,8 +5,13 @@
 <div class="page-head">
   <div>
     {% if editing %}
+    {% if editing.request.status == "rejected" %}
+    <h1>Fix and send again</h1>
+    <p>It was sent back because: "{{ editing.request.sent_back_reason }}". Change what's needed, say what you changed, and it goes back to the approvers.</p>
+    {% else %}
     <h1>Change {{ editing.request.reference }}</h1>
     <p>Lowering the price keeps the approval. Raising it, or changing the category, sends it back for approval.</p>
+    {% endif %}
     {% else %}
     <h1>New request</h1>
     <p>Ask before you spend. It goes to your line manager straight away, then to anyone else who needs to say yes.</p>
@@ -150,7 +155,7 @@
   </div>
   {% endif %}
 
-  <button class="primary block form-foot" type="submit" data-busy="{{ 'Saving…' if editing else 'Sending…' }}">{{ "Save changes" if editing else "Send for approval" }}</button>
+  <button class="primary block form-foot" type="submit" data-busy="{{ 'Saving…' if editing else 'Sending…' }}">{{ ("Send again" if editing.request.status == "rejected" else "Save changes") if editing else "Send for approval" }}</button>
   </div>
 </form>
 
