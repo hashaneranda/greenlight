@@ -393,6 +393,12 @@ class TestHandingOverApprovals:
         assert recorded[0].to_id == company.nadia.id
         assert recorded[1].approver_id == company.nadia.id
 
+    def test_approvals_cannot_be_handed_to_the_person_leaving(self, company):
+        request = submitted(company, company.sam, company.general)
+
+        with pytest.raises(InvalidRequest, match="someone other than Priya"):
+            request.hand_over_approvals(company.priya, company.priya, actor=company.ceo, now=NOW)
+
     def test_a_later_step_moves_without_asking_yet(self, company):
         request = submitted(company, company.sam, company.software, "9000")
         request.pull_events()
