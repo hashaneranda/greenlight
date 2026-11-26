@@ -1,8 +1,9 @@
 import enum
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
-from greenlight.domain.errors import NotPermitted
+from greenlight.domain.errors import InvalidRequest, NotPermitted
 
 
 class Role(enum.StrEnum):
@@ -50,6 +51,14 @@ class Employee:
         return bool(self.roles & {Role.EXECUTIVE_APPROVER, Role.ADMIN})
 
     @property
+    def can_manage_people(self) -> bool:
+        return Role.ADMIN in self.roles
+
+    @property
+    def can_manage_reference_data(self) -> bool:
+        return Role.FINANCE in self.roles
+
+    @property
     def sees_all_spend(self) -> bool:
         return bool(self.roles & {Role.FINANCE, Role.EXECUTIVE_APPROVER, Role.ADMIN})
 
@@ -60,6 +69,38 @@ class Employee:
     @property
     def initials(self) -> str:
         return "".join(part[0] for part in self.name.split()[:2]).upper()
+
+
+_APPROVER_ROLES = {
+    Role.EXECUTIVE_APPROVER: "COO approver",
+    Role.IT_APPROVER: "IT approver",
+}
+
+
+def check_reporting_line(
+    person: Employee, manager_id: UUID | None, everyone: Iterable[Employee]
+) -> None:
+    if manager_id == person.id:
+        raise InvalidRequest(f"{person.first_name} can't report to themselves.")
+    by_id = {someone.id: someone for someone in everyone}
+    line = [person]
+    manager = by_id.get(manager_id)
+    while manager is not None:
+        line.append(manager)
+        if manager.id == person.id:
+            names = " → ".join(someone.first_name for someone in line)
+            raise InvalidRequest(f"That would make a loop: {names}.")
+        manager = by_id.get(manager.manager_id)
+
+
+def check_approvers_remain(everyone: Iterable[Employee], without: Employee) -> None:
+    others = [someone for someone in everyone if someone.is_active and someone is not without]
+    for role, title in _APPROVER_ROLES.items():
+        if without.has_role(role) and not any(someone.has_role(role) for someone in others):
+            raise InvalidRequest(
+                f"{without.first_name} is the only active {title}. "
+                "Give the role to someone else first."
+            )
 
 
 @dataclass(eq=False)

@@ -12,6 +12,7 @@ _AUDIT_ACTIONS = {
     events.ApprovalRouteSet: "route_set",
     events.ApprovalRequested: "approval_requested",
     events.ApprovalReminded: "reminder_sent",
+    events.ApprovalsHandedOver: "approvals_handed_over",
     events.StepApproved: "approved",
     events.RequestApproved: "fully_approved",
     events.RequestRejected: "rejected",

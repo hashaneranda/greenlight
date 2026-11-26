@@ -374,3 +374,77 @@ def test_paying_above_the_approval_needs_explicit_confirmation(company):
     request.record_payment(company.tom, **pay, confirm_over_approval=True)
 
     assert request.paid_usd == Decimal("4500.00")
+
+
+class TestHandingOverApprovals:
+    def test_open_approvals_move_to_the_person_taking_over(self, company):
+        request = submitted(company, company.sam, company.general)
+        request.pull_events()
+
+        request.hand_over_approvals(company.priya, company.nadia, actor=company.ceo, now=NOW)
+
+        assert request.pending_step.approver_id == company.nadia.id
+        recorded = request.pull_events()
+        assert [type(event) for event in recorded] == [
+            events.ApprovalsHandedOver,
+            events.ApprovalRequested,
+        ]
+        assert recorded[0].from_id == company.priya.id
+        assert recorded[0].to_id == company.nadia.id
+        assert recorded[1].approver_id == company.nadia.id
+
+    def test_a_later_step_moves_without_asking_yet(self, company):
+        request = submitted(company, company.sam, company.software, "9000")
+        request.pull_events()
+
+        request.hand_over_approvals(company.daniel, company.tom, actor=company.ceo, now=NOW)
+
+        assert [step.approver_id for step in request.current_steps] == [
+            company.priya.id,
+            company.tom.id,
+            company.nadia.id,
+        ]
+        assert event_types(request) == [events.ApprovalsHandedOver]
+
+    def test_the_person_taking_over_approves_once_for_both_steps(self, company):
+        request = submitted(company, company.sam, company.general, "7000")
+
+        request.hand_over_approvals(company.priya, company.nadia, actor=company.ceo, now=NOW)
+        request.approve(company.nadia, NOW)
+
+        assert [step.stages for step in request.current_steps] == [["line_manager", "executive"]]
+        assert request.status == RequestStatus.APPROVED
+
+    def test_the_new_approver_gets_a_full_day_before_a_reminder(self, company):
+        request = submitted(company, company.sam, company.general)
+        later = NOW + timedelta(days=2)
+
+        request.hand_over_approvals(company.priya, company.nadia, actor=company.ceo, now=later)
+
+        assert not request.remind_approver(later + timedelta(hours=1), after=timedelta(hours=24))
+
+    def test_approvals_are_never_handed_to_the_requester(self, company):
+        request = submitted(company, company.sam, company.general)
+
+        with pytest.raises(NotPermitted, match="raised"):
+            request.hand_over_approvals(company.priya, company.sam, actor=company.ceo, now=NOW)
+
+    def test_approvals_are_never_handed_to_someone_who_has_left(self, company):
+        request = submitted(company, company.sam, company.general)
+        company.tom.is_active = False
+
+        with pytest.raises(NotPermitted, match="left"):
+            request.hand_over_approvals(company.priya, company.tom, actor=company.ceo, now=NOW)
+
+    def test_someone_who_already_approved_cannot_take_another_step(self, company):
+        request = submitted(company, company.sam, company.software, "9000")
+        request.approve(company.priya, NOW)
+
+        with pytest.raises(NotPermitted, match="already approved"):
+            request.hand_over_approvals(company.daniel, company.priya, actor=company.ceo, now=NOW)
+
+    def test_there_must_be_something_to_hand_over(self, company):
+        request = submitted(company, company.sam, company.general)
+
+        with pytest.raises(InvalidRequest, match="nothing waiting"):
+            request.hand_over_approvals(company.daniel, company.tom, actor=company.ceo, now=NOW)

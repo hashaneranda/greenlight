@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from greenlight.application import audit_chain
+from greenlight.application import audit_chain, event_handlers
 from greenlight.application.queries import SpendQueries
 from greenlight.application.use_cases import KeptQuote, SpendApprovals, Upload
 from greenlight.domain.errors import InvalidRequest, NotPermitted
@@ -67,6 +67,20 @@ def test_submitting_notifies_the_line_manager(company, uow, approvals):
     assert reference == "GL-00001"
     assert recipients(uow, company) == [("Priya", "Approval needed")]
     assert uow.commits == 1
+
+
+def test_the_person_taking_over_is_asked_to_approve(company, uow, approvals):
+    reference = approvals.submit(company.sam.id, details(company.general), [PDF])
+    request = uow.requests.by_reference(reference)
+
+    request.hand_over_approvals(company.priya, company.nadia, actor=company.ceo, now=NOW)
+    event_handlers.handle(uow, request, NOW)
+
+    assert [e.action for e in uow.audit.entries[-2:]] == [
+        "approvals_handed_over",
+        "approval_requested",
+    ]
+    assert recipients(uow, company)[-1] == ("Nadia", "Approval needed")
 
 
 def test_quote_must_be_a_document_or_photo(company, approvals):
