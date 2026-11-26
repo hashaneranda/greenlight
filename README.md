@@ -67,11 +67,12 @@ alembic check     # migrations match the models
 
 ## Deploying
 
-The demo runs on Render's free tier (`render.yaml`) with a free Neon Postgres database. `deploy/cloud-run/service.yaml` shows the production shape on Cloud Run with Cloud SQL, Secret Manager and a dedicated service account.
+The demo runs on Render's free tier (`render.yaml`) with a free Neon Postgres database. `neon.ts` holds the Neon branch policy: `neon deploy` applies it and writes both connection strings to `.env.local`, which stays out of git. `deploy/cloud-run/service.yaml` shows the production shape on Cloud Run with Cloud SQL, Secret Manager and a dedicated service account.
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | Postgres connection string |
+| `DATABASE_URL` | Postgres connection string. On Neon, the pooled one |
+| `DATABASE_URL_UNPOOLED` | Optional direct connection, used for migrations so they bypass the pooler |
 | `SECRET_KEY` | Signs session cookies |
 | `BASE_URL` | Public URL, used in links and for secure cookies |
 | `SIGN_IN` | `demo` or `entra` |
