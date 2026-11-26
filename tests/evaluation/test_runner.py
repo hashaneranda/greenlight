@@ -207,3 +207,18 @@ def test_the_report_prices_a_read_only_from_the_pricing_file():
     report = render(_run(_answers()), price=price)
 
     assert "$0.70 per 1,000 reads" in report
+
+
+def test_a_run_pauses_between_reads_but_not_before_the_first():
+    pauses = []
+
+    run(
+        CASES,
+        lambda on_usage: FakeModel(_answers(), on_usage),
+        label="fake-2026-11-26",
+        model_name="fake/reader",
+        ran_on=date(2026, 11, 26),
+        pause=lambda: pauses.append(1),
+    )
+
+    assert len(pauses) == len(CASES) - 1

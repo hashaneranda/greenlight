@@ -1,5 +1,6 @@
 import argparse
 import logging
+import time
 from datetime import date
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from greenlight.infrastructure.seed import seed_demo
 from greenlight.web.container import build_container
 
 log = logging.getLogger("greenlight")
+SECONDS_BETWEEN_GROQ_READS = 20
 
 
 def _project_root() -> Path:
@@ -66,8 +68,9 @@ def _read_with_groq(cases: list[Case]) -> Run:
             "Set GROQ_API_KEY in .env to evaluate against Groq, "
             "or score a saved recording with --replay."
         )
-    # The free tier allows a few requests a minute. The client waits as long as Groq's
-    # retry-after asks, so a run is slow rather than incomplete.
+    # Groq's free tier allows 1,000 answer tokens a minute. Pausing between reads keeps the
+    # run under it, so the latency measured is the model's and not time spent waiting out a
+    # rate limit. The retries are only a fallback.
     patient = OpenAI(api_key=api_key, base_url=GROQ_URL, timeout=60, max_retries=10)
     today = date.today()
     try:
@@ -79,6 +82,7 @@ def _read_with_groq(cases: list[Case]) -> Run:
             label=f"groq-{today.isoformat()}",
             model_name=settings.groq_model,
             ran_on=today,
+            pause=lambda: time.sleep(SECONDS_BETWEEN_GROQ_READS),
         )
     except ModelUnavailable as error:
         raise SystemExit(f"Groq could not be reached, so nothing was written: {error}") from error
