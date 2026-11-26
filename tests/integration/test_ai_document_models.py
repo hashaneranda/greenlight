@@ -1,4 +1,5 @@
 import io
+import json
 from collections.abc import Callable
 from decimal import Decimal
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from greenlight.config import Settings
 from greenlight.domain.errors import InvalidRequest
 from greenlight.infrastructure.ai.document_readers import (
+    MOST_LINES,
     AIInvoiceReader,
     AIQuoteReader,
     InvoiceFields,
@@ -120,6 +122,19 @@ def test_a_scanned_pdf_is_sent_as_pictures_of_its_pages():
     AIInvoiceReader(groq(client)).read(scanned_pdf(), "application/pdf")
 
     assert client.sent[0]["image_url"]["url"].startswith("data:image/png;base64,")
+
+
+def test_a_long_invoice_keeps_its_first_lines_so_the_answer_stays_short():
+    many_lines = [{"description": f"Delivery {day}", "amount": 100} for day in range(54)]
+    answer = INVOICE_JSON.replace(
+        '[{"description": "Professional plan", "amount": 6480}]', json.dumps(many_lines)
+    )
+    client = FakeChat(answer)
+
+    invoice = AIInvoiceReader(groq(client)).read(b"img", "image/jpeg")
+
+    assert len(invoice.lines) == MOST_LINES
+    assert f"at most the first {MOST_LINES}" in client.calls[-1]["messages"][0]["content"]
 
 
 def test_thinking_before_the_answer_is_ignored():
