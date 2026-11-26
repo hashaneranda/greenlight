@@ -31,7 +31,10 @@ The suppliers, addresses, bank details and figures are all made up.
 ```sh
 greenlight eval --provider groq           # read every document and score the answers
 greenlight eval --provider groq --record  # also save the model's answers for replay
+greenlight eval --replay evals/recorded/groq-2026-11-26.json  # score a saved run again, no key needed
 ```
+
+Each run rewrites `docs/ai-evaluation.md`. Prices for the cost line come from `pricing.json`; fill them in from the provider's pricing page on the day of the run.
 
 ## Adding a case
 
