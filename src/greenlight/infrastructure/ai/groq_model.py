@@ -11,7 +11,7 @@ from pydantic import BaseModel, ValidationError
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
-from greenlight.infrastructure.ai.document_readers import ReadFailed, Usage
+from greenlight.infrastructure.ai.document_readers import ModelUnavailable, ReadFailed, Usage
 
 GROQ_URL = "https://api.groq.com/openai/v1"
 MOST_PAGES_AS_IMAGES = 3
@@ -62,7 +62,7 @@ class GroqModel:
                 max_completion_tokens=MOST_ANSWER_TOKENS,
             )
         except OpenAIError as error:
-            raise ReadFailed(str(error)) from error
+            raise ModelUnavailable(str(error)) from error
 
         if usage := response.usage:
             log.info(

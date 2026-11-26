@@ -5,13 +5,15 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from openai import OpenAI
 
 from greenlight.config import get_settings
 from greenlight.evaluation.cases import Case, load_cases
 from greenlight.evaluation.recording import Recording
 from greenlight.evaluation.report import load_price, render, summary
 from greenlight.evaluation.runner import Run, replay, run
-from greenlight.infrastructure.ai.groq_model import GroqModel
+from greenlight.infrastructure.ai.document_readers import ModelUnavailable
+from greenlight.infrastructure.ai.groq_model import GROQ_URL, GroqModel
 from greenlight.infrastructure.seed import seed_demo
 from greenlight.web.container import build_container
 
@@ -64,14 +66,22 @@ def _read_with_groq(cases: list[Case]) -> Run:
             "Set GROQ_API_KEY in .env to evaluate against Groq, "
             "or score a saved recording with --replay."
         )
+    # The free tier allows a few requests a minute. The client waits as long as Groq's
+    # retry-after asks, so a run is slow rather than incomplete.
+    patient = OpenAI(api_key=api_key, base_url=GROQ_URL, timeout=60, max_retries=10)
     today = date.today()
-    return run(
-        cases,
-        lambda on_usage: GroqModel(api_key, settings.groq_model, on_usage=on_usage),
-        label=f"groq-{today.isoformat()}",
-        model_name=settings.groq_model,
-        ran_on=today,
-    )
+    try:
+        return run(
+            cases,
+            lambda on_usage: GroqModel(
+                api_key, settings.groq_model, client=patient, on_usage=on_usage
+            ),
+            label=f"groq-{today.isoformat()}",
+            model_name=settings.groq_model,
+            ran_on=today,
+        )
+    except ModelUnavailable as error:
+        raise SystemExit(f"Groq could not be reached, so nothing was written: {error}") from error
 
 
 def main() -> None:
