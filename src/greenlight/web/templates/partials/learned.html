@@ -1,0 +1,26 @@
+{% from "partials/icons.html" import icon %}
+{% macro seen_before(seen, category) -%}
+    {% if seen and (seen.says_anything or seen.typical_usd) %}
+        <section class="sheet learned" aria-labelledby="learned-heading">
+      <div class="sheet-head"><h2 id="learned-heading">{{ icon("spark") }} Seen before</h2></div>
+      <div class="body">
+        <ul class="reasons">
+          {% if seen.is_unusually_high %}
+          <li class="no">{{ icon("flag") }}<span>About {{ '%g'|format(seen.times_typical|float) }} times what {{ category|lower }} usually costs here ({{ seen.typical_usd|usd }})</span></li>
+          {% elif seen.typical_usd %}
+          <li class="yes">{{ icon("check") }}<span>In line with what {{ category|lower }} usually costs here ({{ seen.typical_usd|usd }})</span></li>
+          {% endif %}
+          {% for earlier in seen.sent_back_before[:2] %}
+          <li class="no">{{ icon("flag") }}<span><a href="/requests/{{ earlier.reference }}">{{ earlier.reference }}</a> from this supplier was sent back: {{ earlier.sent_back_reason }}</span></li>
+          {% endfor %}
+          {% if seen.approved_before %}
+          {% set latest = seen.approved_before[0] %}
+          <li class="yes">{{ icon("check") }}<span>{{ seen.approved_before|length }} earlier request{{ "s" if seen.approved_before|length != 1 }} to this supplier approved, the latest <a href="/requests/{{ latest.reference }}">{{ latest.reference }}</a> for {{ latest.approved_total_usd|usd }}</span></li>
+          {% endif %}
+        </ul>
+        <p class="muted small">Learned from past decisions you can see. It's a hint, not a rule.</p>
+      </div>
+    </section>
+    {% endif %}
+
+{%- endmacro %}

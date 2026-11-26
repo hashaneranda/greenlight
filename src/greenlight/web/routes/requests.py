@@ -34,6 +34,10 @@ def _money(raw: str, currency: str) -> Money:
         raise InvalidRequest("Choose a currency.") from error
 
 
+def _after_decision(form: FormData) -> RedirectResponse:
+    return RedirectResponse("/review" if form.get("next") == "review" else "/", status_code=303)
+
+
 def _inline_disposition(filename: str) -> str:
     printable = "".join(ch for ch in filename if ch.isprintable() and ch not in '"\\;')
     ascii_name = printable.encode("ascii", "ignore").decode() or "quote"
@@ -244,7 +248,7 @@ async def approve(
     except DomainError as error:
         flash(request, str(error), "error")
     background.add_task(container.notifications.deliver_pending)
-    return RedirectResponse("/", status_code=303)
+    return _after_decision(form)
 
 
 @router.post("/{reference}/reject", dependencies=[Depends(verify_csrf)])
@@ -261,9 +265,9 @@ async def reject(
         flash(request, f"{reference} was sent back with your reason.")
     except DomainError as error:
         flash(request, str(error), "error")
-        return _to_request(reference)
+        return _after_decision(form) if form.get("next") == "review" else _to_request(reference)
     background.add_task(container.notifications.deliver_pending)
-    return RedirectResponse("/", status_code=303)
+    return _after_decision(form)
 
 
 @router.post("/{reference}/withdraw", dependencies=[Depends(verify_csrf)])

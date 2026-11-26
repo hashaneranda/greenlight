@@ -85,3 +85,45 @@ if (quoteReader) {
     button.dataset.busy = event.target.checked ? "Attaching…" : "Reading the quote…";
   });
 }
+
+const card = document.querySelector("[data-swipe]");
+if (card) {
+  const approveForm = document.querySelector(".review-actions form");
+  const sendBack = document.querySelector("[data-open='reject-sheet']");
+  let startX = null;
+  let dx = 0;
+
+  const reset = () => {
+    card.style.transform = "";
+    card.style.removeProperty("--verdict-opacity");
+    card.removeAttribute("data-verdict");
+  };
+
+  card.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("a, button")) return;
+    startX = event.clientX;
+    card.setPointerCapture(event.pointerId);
+  });
+  card.addEventListener("pointermove", (event) => {
+    if (startX === null) return;
+    dx = event.clientX - startX;
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 24}deg)`;
+    card.dataset.verdict = dx > 0 ? "Approve" : "Send back";
+    card.style.setProperty("--verdict-opacity", Math.min(Math.abs(dx) / 120, 1));
+  });
+  card.addEventListener("pointerup", () => {
+    if (startX === null) return;
+    startX = null;
+    if (dx > 120) {
+      card.classList.add("leaving-yes");
+      setTimeout(() => approveForm.requestSubmit(), 250);
+    } else if (dx < -120) {
+      reset();
+      sendBack.click();
+    } else {
+      reset();
+    }
+    dx = 0;
+  });
+  card.addEventListener("pointercancel", () => { startX = null; reset(); });
+}

@@ -27,3 +27,11 @@ def insights(request: Request, user: CurrentUser):
     return render(
         request, "insights.html", board=queries.dashboard(user.id), lookups=queries.lookups()
     )
+
+
+@router.get("/review")
+def review(request: Request, user: CurrentUser):
+    queries = container_of(request).queries
+    waiting = queries.waiting_for(user.id)
+    view = queries.request_view(user.id, waiting[0].reference) if waiting else None
+    return render(request, "review.html", view=view, remaining=len(waiting))

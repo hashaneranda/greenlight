@@ -135,10 +135,11 @@
     <label for="quotes">Quote <span class="hint">{% if values.kept_quote %}{{ values.kept_quote_name }} is attached. Add another if you have one.{% elif editing and editing.request.quotes %}Add the new quote if the price changed{% else %}A PDF or a photo of it{% endif %}</span></label>
     <input id="quotes" name="quotes" type="file" multiple accept="application/pdf,image/*">
   </div>
-  <div class="field">
-    <label for="no_quote_reason">No quote? Say why <span class="hint">For example, a visa or government fee</span></label>
+  <details class="field no-quote" {% if values.no_quote_reason %}open{% endif %}>
+    <summary>No quote?</summary>
+    <label for="no_quote_reason">Say why <span class="hint">For example, a visa or government fee</span></label>
     <input id="no_quote_reason" name="no_quote_reason" maxlength="300" value="{{ values.no_quote_reason }}">
-  </div>
+  </details>
 
   <label class="check field"><input type="checkbox" name="confidential" value="yes" {% if values.confidential == "yes" %}checked{% endif %}><span>Keep it confidential<span class="hint">Department heads who aren't approving it won't see it, and Greenlight won't learn from it.</span></span></label>
 

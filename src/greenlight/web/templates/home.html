@@ -6,13 +6,20 @@
 <div class="page-head">
   <div>
     <h1>{% if waiting %}{{ user.first_name }}, {{ waiting|length }} {{ "needs" if waiting|length == 1 else "need" }} your OK{% else %}All clear, {{ user.first_name }}{% endif %}</h1>
-    <p>{% if waiting %}Open one to see the quote and approve it, or send it back with a reason.{% else %}Nothing is waiting for your approval. Raise a request before you spend and it goes straight to the right people.{% endif %}</p>
+    <p>{% if waiting %}Each one shows the quote and what Greenlight has seen before.{% else %}Nothing is waiting for your approval. Raise a request before you spend and it goes straight to the right people.{% endif %}</p>
   </div>
   <div class="actions"><a class="button primary" href="/requests/new">{{ icon("plus") }}New request</a></div>
 </div>
 
 <div class="home-layout">
   <div>
+    {% if waiting %}
+    <a class="review-cta" href="/review">
+      <span class="stack" aria-hidden="true">{% for item in waiting[:3] %}<span></span>{% endfor %}</span>
+      <span><strong>Start reviewing</strong><span>One at a time. Approve or send back in a tap.</span></span>
+      {{ icon("check") }}
+    </a>
+    {% endif %}
     <section class="sheet" aria-labelledby="waiting-heading">
       <div class="sheet-head"><h2 id="waiting-heading">Waiting for you</h2></div>
       {{ request_rows(waiting, lookups, viewer=user, empty_title="You're all caught up", empty="New requests that need you will appear here, and we'll email you too.") }}
@@ -55,7 +62,7 @@
     </section>
     {% endif %}
 
-    {% if not mine %}
+    {% if not mine and not user.sees_all_spend %}
     <section class="how" aria-labelledby="how-heading">
       <h2 id="how-heading" class="visually-hidden">How a request moves</h2>
       <ol class="how-steps">
