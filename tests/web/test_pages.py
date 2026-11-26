@@ -165,3 +165,18 @@ def test_the_request_form_learns_how_a_supplier_was_filed(client):
 
     assert advice["learned_from"].startswith("GL-")
     assert advice["category_id"]
+
+
+def test_the_coo_reviews_waiting_requests_one_by_one(client):
+    sign_in_as(client, "Nadia Frost")
+    card = client.get("/review").text
+    reference = re.search(r'action="/requests/(GL-\d+)/approve"', card).group(1)
+
+    response = client.post(
+        f"/requests/{reference}/approve",
+        data={"csrf": csrf_from(card), "next": "review"},
+        follow_redirects=False,
+    )
+
+    assert response.headers["location"] == "/review"
+    assert "All clear" in client.get("/review").text
