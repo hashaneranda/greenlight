@@ -17,9 +17,7 @@ depends_on = None
 def upgrade() -> None:
     with op.batch_alter_table("employees") as batch:
         batch.add_column(sa.Column("microsoft_object_id", sa.String(length=64), nullable=True))
-        batch.create_unique_constraint(
-            "uq_employees_microsoft_object_id", ["microsoft_object_id"]
-        )
+        batch.create_unique_constraint("uq_employees_microsoft_object_id", ["microsoft_object_id"])
 
 
 def downgrade() -> None:
