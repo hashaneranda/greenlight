@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Inbox{% endblock %}
+{% set sent_by = {
+  "email": "Emailed",
+  "teams": "Sent to Teams",
+  "email and Teams": "Emailed and sent to Teams",
+  "logged": "Shown here only, as email isn't set up on this server",
+} %}
+{% macro delivery(item) -%}
+  {% if item.channel %}{{ sent_by[item.channel] }}{% elif item.delivery_error %}Couldn't send: {{ item.delivery_error }}{% else %}Not sent yet{% endif %}
+{%- endmacro %}
+{% macro notice(item) -%}
+  <span class="title">{{ item.subject }}</span>
+  <span class="sub end">{% if item.is_new %}<span class="status-text pending">New</span>{% endif %}</span>
+  <span class="sub message">{{ item.body }}</span>
+  <span class="sub">{{ delivery(item) }}</span>
+  <span class="sub end">{{ item.created_at|when }}</span>
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Inbox</h1>
+    <p>Everything Greenlight has sent you, and how it reached you.</p>
+  </div>
+</div>
+<section class="sheet">
+  {% if items %}
+  <ul class="rows inbox">
+    {% for item in items %}
+    <li{% if item.is_new %} class="new"{% endif %}>
+      {% if item.reference %}
+      <a class="row" href="/requests/{{ item.reference }}">{{ notice(item) }}</a>
+      {% else %}
+      <div class="row">{{ notice(item) }}</div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty"><strong>Nothing yet</strong>When a request needs you, or one of yours moves, it shows up here.</p>
+  {% endif %}
+</section>
+{% endblock %}

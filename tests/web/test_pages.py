@@ -1,6 +1,7 @@
 import re
 
 from fastapi.testclient import TestClient
+from httpx import Response
 
 from greenlight.config import Settings
 from greenlight.infrastructure.seed import seed_demo
@@ -63,12 +64,12 @@ def test_staff_cannot_open_the_payments_ledger_or_audit_log(client):
     assert client.get("/audit").status_code == 403
 
 
-def test_raising_a_request_from_a_phone_form(client):
+def raise_water_dispenser(client: TestClient) -> Response:
     sign_in_as(client, "Grace Mutombo")
     form = client.get("/requests/new").text
     category_id = re.search(r'<option value="([0-9a-f-]+)"\s*>Facilities', form).group(1)
 
-    response = client.post(
+    return client.post(
         "/requests",
         data={
             "csrf": csrf_from(form),
@@ -81,6 +82,14 @@ def test_raising_a_request_from_a_phone_form(client):
         },
         files={"quotes": ("quote.pdf", b"%PDF-1.4 test", "application/pdf")},
     )
+
+
+def unread_counts(page: str) -> list[str]:
+    return re.findall(r'<span class="count">(\d+)', page)
+
+
+def test_raising_a_request_from_a_phone_form(client):
+    response = raise_water_dispenser(client)
 
     assert response.status_code == 200
     assert "Water dispenser" in response.text
@@ -197,3 +206,18 @@ def test_a_sent_back_request_can_be_fixed_and_sent_again(client):
     )
 
     assert "Waiting for" in client.get(f"/requests/{reference}").text
+
+
+def test_the_approver_is_told_until_they_open_their_inbox(client):
+    sign_in_as(client, "Joseph Kabila Mwamba")
+    client.get("/inbox")
+    raise_water_dispenser(client)
+
+    sign_in_as(client, "Joseph Kabila Mwamba")
+    assert unread_counts(client.get("/").text) == ["1", "1"]
+
+    inbox = client.get("/inbox").text
+    new = re.findall(r'<li class="new">.*?<span class="title">([^<]+)</span>', inbox, re.S)
+    assert [subject.split(" (")[0] for subject in new] == ["Approval needed: Water dispenser"]
+    assert "Shown here only, as email isn&#39;t set up on this server" in inbox
+    assert unread_counts(client.get("/").text) == []
