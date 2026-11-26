@@ -21,11 +21,14 @@
   </ul>
   <form class="spaced" method="post" action="/requests/{{ r.reference }}/payments">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <input type="hidden" name="invoice_reference" value="{{ invoice.invoice_number }}">
-    <input type="hidden" name="amount" value="{{ invoice.total }}">
-    <input type="hidden" name="currency" value="{{ invoice.currency }}">
-    <input type="hidden" name="paid_on" value="{{ today.isoformat() }}">
-    <button class="primary" type="submit">Record {{ invoice.total_money }} as paid against {{ r.reference }}</button>
+    <div class="field"><label for="inv-{{ loop.index }}">Invoice number</label><input id="inv-{{ loop.index }}" name="invoice_reference" value="{{ invoice.invoice_number }}" required></div>
+    <div class="field-row">
+      <div class="field"><label for="amt-{{ loop.index }}">Amount paid</label><input id="amt-{{ loop.index }}" name="amount" value="{{ invoice.total }}" inputmode="decimal" required></div>
+      <div class="field"><label for="cur-{{ loop.index }}">Currency</label><input id="cur-{{ loop.index }}" name="currency" value="{{ invoice.currency }}" maxlength="3" required></div>
+    </div>
+    <div class="field"><label for="paid-{{ loop.index }}">Paid on</label><input id="paid-{{ loop.index }}" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
+    <label class="check"><input type="checkbox" name="confirm_over_approval" value="yes"> If this goes above the approved amount, I have checked it and want to go ahead</label>
+    <button class="primary" type="submit">Record payment against {{ r.reference }}</button>
   </form>
 </section>
 {% else %}

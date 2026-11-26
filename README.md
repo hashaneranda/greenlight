@@ -75,7 +75,11 @@ The demo runs on Render's free tier (`render.yaml`) with a free Neon Postgres da
 | `SECRET_KEY` | Signs session cookies |
 | `BASE_URL` | Public URL, used in links and for secure cookies |
 | `SIGN_IN` | `demo` or `entra` |
+| `DEMO_PASSCODE` | Optional. When set, the demo persona picker asks for it |
 | `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET` | Microsoft sign-in |
 | `OPENAI_API_KEY` | Turns on invoice reading |
 | `SMTP_*`, `TEAMS_WEBHOOK_URL` | Notification delivery |
 | `CRON_TOKEN` | Protects `/jobs/reminders` and `/jobs/deliver` |
+| `INVOICE_READS_PER_HOUR` | Per-person limit on LLM invoice reads (default 30) |
+
+Anywhere other than localhost, Greenlight refuses to start without a `SECRET_KEY` of at least 32 characters. In production it also refuses demo sign-in, plain http, and Entra without a tenant id. Microsoft accounts are matched by email on first sign-in and by account id after that, and only the Orvane tenant is accepted. Teams posts carry a link only, so nothing about a request lands in a shared channel.

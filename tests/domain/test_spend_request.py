@@ -279,6 +279,7 @@ class TestPayments:
             usd_rate=Decimal("1"),
             paid_on=TODAY,
             now=NOW,
+            confirm_over_approval=True,
         )
 
         assert request.pull_events()[0].over_approval_usd == Decimal("400.00")
@@ -350,3 +351,26 @@ class TestSupplierChange:
         )
 
         assert needs_reapproval
+
+
+def test_titles_cannot_carry_line_breaks(company):
+    with pytest.raises(InvalidRequest, match="single line"):
+        details(company.general, title="Laptop\nBcc: everyone").validate(has_quote=True)
+
+
+def test_paying_above_the_approval_needs_explicit_confirmation(company):
+    request = submitted(company, company.sam, company.general, "4000")
+    request.approve(company.priya, NOW)
+    pay = {
+        "invoice_reference": "INV-9",
+        "amount": Money(Decimal("4500"), "USD"),
+        "usd_rate": Decimal("1"),
+        "paid_on": TODAY,
+        "now": NOW,
+    }
+
+    with pytest.raises(InvalidRequest, match="more than was approved"):
+        request.record_payment(company.tom, **pay)
+    request.record_payment(company.tom, **pay, confirm_over_approval=True)
+
+    assert request.paid_usd == Decimal("4500.00")

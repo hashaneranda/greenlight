@@ -60,6 +60,7 @@
             <div class="field"><label for="pay-currency">Currency</label><input id="pay-currency" name="currency" value="{{ r.currency }}" maxlength="3" required></div>
           </div>
           <div class="field"><label for="paid_on">Paid on</label><input id="paid_on" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
+          <label class="check"><input type="checkbox" name="confirm_over_approval" value="yes"> This payment takes us above the approved amount, and I want to go ahead</label>
           <button class="primary" type="submit">Record payment</button>
         </form>
       </details>

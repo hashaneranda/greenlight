@@ -77,14 +77,17 @@ def rank_matches(
         warnings: list[str] = []
         score = 0.0
 
-        if invoice.purchase_reference and invoice.purchase_reference.upper() == request.reference:
-            score += 1.0
-            reasons.append(f"Invoice quotes {request.reference}")
-
         supplier_score = _supplier_similarity(invoice.supplier, request.supplier)
         score += 0.5 * supplier_score
+        if supplier_score < 0.6:
+            continue
         if supplier_score >= 0.8:
             reasons.append("Supplier matches")
+
+        quotes_reference = invoice.purchase_reference.upper() == request.reference
+        if quotes_reference:
+            score += 1.0
+            reasons.append(f"Invoice quotes {request.reference}")
 
         expected = _expected_charge_usd(request)
         if expected > 0:

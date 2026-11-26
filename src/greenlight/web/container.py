@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session, sessionmaker
 
 from greenlight.application.queries import SpendQueries
+from greenlight.application.sign_in import MicrosoftSignIn
 from greenlight.application.use_cases import SpendApprovals
 from greenlight.config import Settings
 from greenlight.infrastructure.clock import SystemClock
@@ -20,6 +21,7 @@ class Container:
     approvals: SpendApprovals
     queries: SpendQueries
     notifications: NotificationSender
+    microsoft_sign_in: MicrosoftSignIn
 
     @property
     def invoice_reading_enabled(self) -> bool:
@@ -49,4 +51,5 @@ def build_container(settings: Settings) -> Container:
         ),
         queries=SpendQueries(unit_of_work, clock),
         notifications=NotificationSender(settings, session_factory),
+        microsoft_sign_in=MicrosoftSignIn(unit_of_work),
     )
