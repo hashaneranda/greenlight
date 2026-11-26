@@ -32,9 +32,13 @@ class NotificationSender:
                 .with_for_update(skip_locked=True)
             ).all()
             for notification in pending:
-                recipient = session.get(Employee, notification.recipient_id)
-                link = self._link(session, notification)
-                self._deliver(notification, recipient, link)
+                notification.attempts += 1
+                try:
+                    recipient = session.get(Employee, notification.recipient_id)
+                    self._deliver(notification, recipient, self._link(session, notification))
+                except Exception as error:
+                    log.exception("Notification %s could not be delivered", notification.id)
+                    notification.delivery_error = f"{type(error).__name__}: {error}"[:500]
             session.commit()
             return len(pending)
 
@@ -49,16 +53,14 @@ class NotificationSender:
         return f"{self._settings.base_url}/requests/{reference}"
 
     def _deliver(self, notification: OutgoingNotification, recipient: Employee, link: str) -> None:
-        notification.attempts += 1
+        subject = _single_line(notification.subject)
         body = f"{notification.body}\n\nOpen in Greenlight: {link}"
         teams_webhook = self._settings.teams_webhook_url.get_secret_value()
         channels = []
         if self._settings.smtp_host:
-            channels.append(lambda: self._email(notification.subject, body, recipient))
+            channels.append(lambda: self._email(subject, body, recipient))
         if teams_webhook:
-            channels.append(
-                lambda: self._post_to_teams(teams_webhook, notification.subject, body, recipient)
-            )
+            channels.append(lambda: self._post_to_teams(teams_webhook, recipient, link))
         if not channels:
             log.info("Notification to %s: %s", recipient.email, notification.subject)
 
@@ -88,6 +90,17 @@ class NotificationSender:
             smtp.send_message(message)
 
     @staticmethod
-    def _post_to_teams(webhook: str, subject: str, body: str, recipient: Employee) -> None:
-        text = f"**{subject}** for {recipient.name}\n\n{body}"
+    def _post_to_teams(webhook: str, recipient: Employee, link: str) -> None:
+        # The channel may be shared, so the post says only that something is waiting.
+        # The details stay behind sign-in.
+        name = _escape_markdown(recipient.name)
+        text = f"{name}, there is an update for you in Greenlight: {link}"
         httpx.post(webhook, json={"text": text}, timeout=10).raise_for_status()
+
+
+def _single_line(text: str) -> str:
+    return " ".join("".join(ch if ch.isprintable() else " " for ch in text).split())[:200]
+
+
+def _escape_markdown(text: str) -> str:
+    return "".join(f"\\{ch}" if ch in "\\`*_{}[]()#+-.!<>|~" else ch for ch in text)

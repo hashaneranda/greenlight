@@ -107,6 +107,7 @@ employees = Table(
     Column("manager_id", Uuid, ForeignKey("employees.id")),
     Column("roles", RoleSet, nullable=False, default=list),
     Column("is_active", Boolean, nullable=False, default=True),
+    Column("microsoft_object_id", String(64), unique=True),
 )
 
 categories = Table(

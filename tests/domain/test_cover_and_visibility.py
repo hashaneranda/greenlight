@@ -4,7 +4,7 @@ import pytest
 
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import InvalidRequest, NotPermitted
-from greenlight.domain.people import Department, Role
+from greenlight.domain.people import Department, Employee, Role
 from greenlight.domain.visibility import can_view
 from tests.domain.builders import NOW, TODAY, build_company, submitted
 
@@ -93,3 +93,19 @@ class TestVisibility:
 
         assert can_view(outsider, open_request, headed_department_ids={operations.id}) is True
         assert not can_view(outsider, confidential, headed_department_ids={operations.id})
+
+
+class TestMicrosoftAccounts:
+    def test_first_sign_in_links_the_account(self):
+        person = Employee(email="sam@orvane.example", name="Sam")
+
+        person.link_microsoft_account("oid-1")
+        person.link_microsoft_account("oid-1")
+
+        assert person.microsoft_object_id == "oid-1"
+
+    def test_another_account_with_the_same_email_is_refused(self):
+        person = Employee(email="sam@orvane.example", name="Sam", microsoft_object_id="oid-1")
+
+        with pytest.raises(NotPermitted):
+            person.link_microsoft_account("oid-2")

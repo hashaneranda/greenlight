@@ -104,3 +104,36 @@ def test_jobs_need_the_cron_token(client):
     assert client.post("/jobs/reminders").status_code == 401
     response = client.post("/jobs/reminders", headers={"Authorization": "Bearer cron-secret"})
     assert response.status_code == 200
+
+
+def test_oversized_uploads_are_refused_before_they_are_read(client):
+    sign_in_as(client, "Grace Mutombo")
+    page = client.get("/requests/new").text
+
+    response = client.post(
+        "/requests",
+        data={"csrf": csrf_from(page)},
+        files={"quotes": ("huge.pdf", b"0" * (60 * 1024 * 1024), "application/pdf")},
+    )
+
+    assert response.status_code == 413
+
+
+def test_hosted_demo_can_ask_for_a_passcode(database_url):
+    settings = Settings(
+        database_url=database_url, secret_key="test-secret", demo_passcode="orvane-demo"
+    )
+    container = build_container(settings)
+    seed_demo(container.session_factory, container.approvals)
+    client = TestClient(create_app(settings, container))
+
+    sign_in_as(client, "Nadia Frost")
+    assert client.get("/", follow_redirects=False).status_code == 303
+
+    page = client.get("/sign-in").text
+    nadia = container.queries.person_by_email("nadia.frost@orvane.example")
+    client.post(
+        "/sign-in/demo",
+        data={"csrf": csrf_from(page), "employee_id": str(nadia.id), "passcode": "orvane-demo"},
+    )
+    assert client.get("/", follow_redirects=False).status_code == 200

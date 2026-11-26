@@ -14,7 +14,7 @@ from greenlight.web import auth
 from greenlight.web.container import Container, build_container
 from greenlight.web.deps import render
 from greenlight.web.routes import admin, cover, home, payments, requests
-from greenlight.web.security import SecurityHeaders
+from greenlight.web.security import BodySizeLimit, HourlyLimit, SecurityHeaders
 
 
 def create_app(settings: Settings | None = None, container: Container | None = None) -> FastAPI:
@@ -24,6 +24,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     app = FastAPI(title="Greenlight", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.container = container or build_container(settings)
     app.state.oauth = OAuth()
+    app.state.invoice_reads = HourlyLimit(settings.invoice_reads_per_hour)
     if settings.sign_in == "entra":
         auth.register_entra(
             app.state.oauth,
@@ -41,6 +42,7 @@ def create_app(settings: Settings | None = None, container: Container | None = N
         same_site="lax",
         https_only=settings.secure_cookies,
     )
+    app.add_middleware(BodySizeLimit, max_bytes=settings.max_body_bytes)
 
     @app.exception_handler(auth.SignInRequired)
     async def sign_in_required(request: Request, _):

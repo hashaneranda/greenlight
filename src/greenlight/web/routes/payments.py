@@ -30,6 +30,8 @@ async def read_invoice(request: Request, user: CurrentUser):
     try:
         if not uploads:
             raise InvalidRequest("Choose an invoice to read.")
+        if not request.app.state.invoice_reads.allow(str(user.id)):
+            raise InvalidRequest("You have read a lot of invoices this hour. Try again later.")
         invoice, matches = container.approvals.read_invoice(user.id, uploads[0])
     except DomainError as error:
         flash(request, str(error), "error")
@@ -58,6 +60,7 @@ async def record_payment(
             invoice_reference=form.get("invoice_reference", ""),
             amount=_money(form.get("amount", ""), form.get("currency", "")),
             paid_on=paid_on,
+            confirm_over_approval=form.get("confirm_over_approval") == "yes",
         )
         flash(request, f"Payment recorded against {reference}.")
     except ValueError:

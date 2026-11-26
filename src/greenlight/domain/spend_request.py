@@ -77,6 +77,8 @@ class SpendDetails:
     def validate(self, *, has_quote: bool) -> None:
         if not self.title.strip() or not self.supplier.strip():
             raise InvalidRequest("A title and a supplier are required.")
+        if not (self.title + self.supplier).isprintable():
+            raise InvalidRequest("The title and supplier must each be a single line of text.")
         if not self.justification.strip():
             raise InvalidRequest("Say what the spend is for.")
         if self.amount.amount <= 0:
@@ -458,6 +460,7 @@ class SpendRequest:
         usd_rate: Decimal,
         paid_on: date,
         now: datetime,
+        confirm_over_approval: bool = False,
     ) -> Payment:
         if not actor.can_record_payments:
             raise NotPermitted("Only finance can record payments.")
@@ -468,11 +471,18 @@ class SpendRequest:
         if any(p.invoice_reference == invoice_reference.strip() for p in self.payments):
             raise InvalidRequest("That invoice has already been recorded against this request.")
 
+        amount_usd = amount.in_usd(usd_rate)
+        if self.paid_usd + amount_usd > self.approved_total_usd and not confirm_over_approval:
+            raise InvalidRequest(
+                "This payment takes the total paid to more than was approved. "
+                "Check the invoice, and confirm if it is right."
+            )
+
         payment = Payment(
             invoice_reference=invoice_reference.strip(),
             amount=amount.amount,
             currency=amount.currency,
-            amount_usd=amount.in_usd(usd_rate),
+            amount_usd=amount_usd,
             paid_on=paid_on,
             recorded_by_id=actor.id,
             recorded_at=now,

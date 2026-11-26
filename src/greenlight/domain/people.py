@@ -2,6 +2,8 @@ import enum
 from dataclasses import dataclass, field
 from uuid import UUID, uuid4
 
+from greenlight.domain.errors import NotPermitted
+
 
 class Role(enum.StrEnum):
     EXECUTIVE_APPROVER = "executive_approver"
@@ -20,7 +22,17 @@ class Employee:
     manager_id: UUID | None = None
     roles: set[Role] = field(default_factory=set)
     is_active: bool = True
+    microsoft_object_id: str | None = None
     id: UUID = field(default_factory=uuid4)
+
+    def link_microsoft_account(self, object_id: str) -> None:
+        if not object_id:
+            raise NotPermitted("Microsoft did not say which account signed in.")
+        if self.microsoft_object_id not in (None, object_id):
+            raise NotPermitted(
+                f"{self.email} is linked to a different Microsoft account. Ask IT to check it."
+            )
+        self.microsoft_object_id = object_id
 
     def has_role(self, role: Role) -> bool:
         return role in self.roles

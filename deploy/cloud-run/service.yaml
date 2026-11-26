@@ -26,6 +26,8 @@ spec:
             - { name: ENVIRONMENT, value: production }
             - { name: SIGN_IN, value: entra }
             - { name: BASE_URL, value: https://greenlight.orvane.example }
+            - { name: ENTRA_TENANT_ID, value: 00000000-0000-0000-0000-000000000000 }
+            - { name: ENTRA_CLIENT_ID, value: 00000000-0000-0000-0000-000000000000 }
             - name: DATABASE_URL
               valueFrom: { secretKeyRef: { name: greenlight-database-url, key: latest } }
             - name: SECRET_KEY

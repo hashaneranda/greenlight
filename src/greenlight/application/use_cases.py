@@ -120,6 +120,7 @@ class SpendApprovals:
         invoice_reference: str,
         amount: Money,
         paid_on: date,
+        confirm_over_approval: bool = False,
     ) -> None:
         now = self._clock.now()
         with self._unit_of_work() as uow:
@@ -131,6 +132,7 @@ class SpendApprovals:
                 usd_rate=usd_rate(uow, amount.currency),
                 paid_on=paid_on,
                 now=now,
+                confirm_over_approval=confirm_over_approval,
             )
             event_handlers.handle(uow, request, now)
             uow.commit()
@@ -140,10 +142,12 @@ class SpendApprovals:
             raise InvalidRequest("Invoice reading is not switched on.")
         self._check_upload(upload)
         with self._unit_of_work() as uow:
-            actor = active_person(uow, actor_id)
-            if not actor.can_record_payments:
+            if not active_person(uow, actor_id).can_record_payments:
                 raise NotPermitted("Only finance can match invoices.")
-            invoice = self._invoice_reader.read(upload.content, upload.content_type)
+
+        invoice = self._invoice_reader.read(upload.content, upload.content_type)
+
+        with self._unit_of_work() as uow:
             matches = rank_matches(
                 invoice,
                 uow.requests.with_status(RequestStatus.APPROVED),
@@ -153,7 +157,7 @@ class SpendApprovals:
                 uow,
                 "invoice_read",
                 self._clock.now(),
-                actor_id=actor.id,
+                actor_id=actor_id,
                 supplier=invoice.supplier,
                 invoice_number=invoice.invoice_number,
                 total=str(invoice.total_money),

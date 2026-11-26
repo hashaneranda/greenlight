@@ -1,3 +1,4 @@
+import secrets
 from typing import Annotated
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -6,8 +7,9 @@ from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 
+from greenlight.domain.errors import NotPermitted
 from greenlight.domain.people import Employee
-from greenlight.web.deps import container_of, render
+from greenlight.web.deps import container_of, flash, render
 from greenlight.web.security import verify_csrf
 
 SESSION_USER_KEY = "employee_id"
@@ -59,13 +61,27 @@ async def sign_in(request: Request):
 
     people = container.queries.people()
     lookups = container.queries.lookups()
-    return render(request, "sign_in.html", people=people, lookups=lookups)
+    return render(
+        request,
+        "sign_in.html",
+        people=people,
+        lookups=lookups,
+        needs_passcode=bool(container.settings.demo_passcode.get_secret_value()),
+    )
 
 
 @router.post("/sign-in/demo", dependencies=[Depends(verify_csrf)])
-async def demo_sign_in(request: Request, employee_id: Annotated[UUID, Form()]):
+async def demo_sign_in(
+    request: Request,
+    employee_id: Annotated[UUID, Form()],
+    passcode: Annotated[str, Form()] = "",
+):
     container = container_of(request)
     if container.settings.sign_in != "demo":
+        return RedirectResponse("/sign-in", status_code=303)
+    expected = container.settings.demo_passcode.get_secret_value()
+    if expected and not secrets.compare_digest(passcode.encode(), expected.encode()):
+        flash(request, "That passcode is not right.", "error")
         return RedirectResponse("/sign-in", status_code=303)
     person = container.queries.person(employee_id)
     if person is None or not person.is_active:
@@ -86,9 +102,19 @@ async def entra_callback(request: Request):
             message="Microsoft sign-in did not complete. Please try again.",
         )
     claims = token.get("userinfo") or {}
+    if claims.get("tid") != container.settings.entra_tenant_id:
+        return render(
+            request,
+            "error.html",
+            status_code=403,
+            message="Sign in with your Orvane work account.",
+        )
     email = claims.get("email") or claims.get("preferred_username") or ""
-    person = container.queries.person_by_email(email)
-    if person is None or not person.is_active:
+    try:
+        person = container.microsoft_sign_in.employee_for(email, claims.get("oid", ""))
+    except NotPermitted as error:
+        return render(request, "error.html", status_code=403, message=str(error))
+    if person is None:
         return render(
             request,
             "error.html",
