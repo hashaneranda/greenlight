@@ -20,7 +20,7 @@ class ApprovalStage(enum.StrEnum):
 
 
 _STAGE_LABELS = {
-    ApprovalStage.LINE_MANAGER: "Line manager",
+    ApprovalStage.LINE_MANAGER: "line manager",
     ApprovalStage.IT: "IT",
     ApprovalStage.EXECUTIVE: "COO",
 }

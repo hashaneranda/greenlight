@@ -36,13 +36,18 @@ def company(engine):
     session.add_all(company.org.people.values())
     session.add_all([company.general, company.software, company.travel])
     session.flush()
-    session.execute(tables.approval_thresholds.insert(), [
-        {"category_id": None, "amount_usd": Decimal("5000")},
-        {"category_id": company.travel.id, "amount_usd": Decimal("10000")},
-    ])
-    session.execute(tables.exchange_rates.insert().values(
-        currency="AED", usd_per_unit=Decimal("0.2723"), updated_at=NOW
-    ))
+    session.execute(
+        tables.approval_thresholds.insert(),
+        [
+            {"category_id": None, "amount_usd": Decimal("5000")},
+            {"category_id": company.travel.id, "amount_usd": Decimal("10000")},
+        ],
+    )
+    session.execute(
+        tables.exchange_rates.insert().values(
+            currency="AED", usd_per_unit=Decimal("0.2723"), updated_at=NOW
+        )
+    )
     session.commit()
     session.close()
     return company
@@ -89,8 +94,11 @@ def test_references_are_sequential(company, services):
 def test_cover_and_reminders_work_against_the_database(company, services):
     approvals, queries, _, clock = services
     approvals.arrange_cover(
-        company.nadia.id, absent_id=company.nadia.id, covering_id=company.tom.id,
-        starts_on=TODAY, ends_on=TODAY + timedelta(days=7),
+        company.nadia.id,
+        absent_id=company.nadia.id,
+        covering_id=company.tom.id,
+        starts_on=TODAY,
+        ends_on=TODAY + timedelta(days=7),
     )
     reference = approvals.submit(company.priya.id, details(company.general, "9000"), [PDF])
 

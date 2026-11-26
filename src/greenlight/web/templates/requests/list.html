@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "partials/macros.html" import request_rows %}
+{% block title %}Requests{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Requests</h1>
+    <p class="muted">{{ "Everything across Orvane." if user.sees_all_spend else "Yours, your team's, and anything you approve." }}</p>
+  </div>
+  <a class="button primary" href="/requests/new">New request</a>
+</div>
+
+<form class="card filters" method="get" action="/requests">
+  <div class="field-row three">
+    <div class="field"><label for="q">Search</label><input id="q" name="q" value="{{ filters.q }}" placeholder="Reference, title or supplier"></div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        <option value="">Any</option>
+        {% for value, label in [("pending", "Awaiting approval"), ("approved", "Approved"), ("rejected", "Not approved"), ("withdrawn", "Withdrawn")] %}
+        <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="tag">Project or trip</label>
+      <select id="tag" name="tag">
+        <option value="">Any</option>
+        {% for tag in tags %}<option value="{{ tag.id }}" {% if filters.tag == tag.id|string %}selected{% endif %}>{{ tag.label }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <button type="submit">Filter</button>
+</form>
+
+<section class="card flush">{{ request_rows(requests, lookups, "No requests match.") }}</section>
+{% endblock %}

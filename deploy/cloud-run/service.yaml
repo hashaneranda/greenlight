@@ -1,0 +1,38 @@
+# Production-shaped alternative to Render. Not deployed for the demo.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greenlight
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "3"
+        run.googleapis.com/cloudsql-instances: PROJECT_ID:me-central1:greenlight
+    spec:
+      serviceAccountName: greenlight-runtime@PROJECT_ID.iam.gserviceaccount.com
+      containerConcurrency: 40
+      timeoutSeconds: 60
+      containers:
+        - image: me-central1-docker.pkg.dev/PROJECT_ID/greenlight/app:latest
+          ports:
+            - containerPort: 8000
+          resources:
+            limits: { cpu: "1", memory: 512Mi }
+          env:
+            - { name: ENVIRONMENT, value: production }
+            - { name: SIGN_IN, value: entra }
+            - { name: BASE_URL, value: https://greenlight.orvane.example }
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: greenlight-database-url, key: latest } }
+            - name: SECRET_KEY
+              valueFrom: { secretKeyRef: { name: greenlight-secret-key, key: latest } }
+            - name: ENTRA_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: greenlight-entra-secret, key: latest } }
+            - name: OPENAI_API_KEY
+              valueFrom: { secretKeyRef: { name: greenlight-openai-key, key: latest } }
+            - name: CRON_TOKEN
+              valueFrom: { secretKeyRef: { name: greenlight-cron-token, key: latest } }

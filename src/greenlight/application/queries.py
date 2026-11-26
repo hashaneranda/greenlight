@@ -23,8 +23,10 @@ class Lookups:
     categories: dict[UUID, Category]
     tags: dict[UUID, Tag]
 
-    def person(self, person_id: UUID | None) -> Employee | None:
-        return self.people.get(person_id) if person_id else None
+    def person(self, person_id: UUID | str | None) -> Employee | None:
+        if not person_id:
+            return None
+        return self.people.get(person_id if isinstance(person_id, UUID) else UUID(person_id))
 
 
 @dataclass

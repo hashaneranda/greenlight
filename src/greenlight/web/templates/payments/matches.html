@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Invoice matches{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Invoice {{ invoice.invoice_number or "(no number)" }}</h1>
+    <p class="muted">{{ invoice.supplier }} · {{ invoice.total_money }}{% if invoice.invoice_date %} · dated {{ invoice.invoice_date|day }}{% endif %}</p>
+  </div>
+  <a class="button" href="/payments">Back</a>
+</div>
+<div class="notice info">Read automatically. Check the figures against the invoice before recording a payment.</div>
+
+{% for match in matches %}
+{% set r = match.request %}
+<section class="card match spaced">
+  <h2><a href="/requests/{{ r.reference }}">{{ r.reference }}</a> · {{ r.title }}</h2>
+  <p class="small muted">{{ r.supplier }} · raised by {{ lookups.person(r.requester_id).name }} · left to pay {{ r.outstanding_usd|usd }}</p>
+  <ul class="reason-list">
+    {% for reason in match.reasons %}<li>{{ reason }}</li>{% endfor %}
+    {% for warning in match.warnings %}<li class="warn">{{ warning }}</li>{% endfor %}
+  </ul>
+  <form class="spaced" method="post" action="/requests/{{ r.reference }}/payments">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="invoice_reference" value="{{ invoice.invoice_number }}">
+    <input type="hidden" name="amount" value="{{ invoice.total }}">
+    <input type="hidden" name="currency" value="{{ invoice.currency }}">
+    <input type="hidden" name="paid_on" value="{{ today.isoformat() }}">
+    <button class="primary" type="submit">Record {{ invoice.total_money }} as paid against {{ r.reference }}</button>
+  </form>
+</section>
+{% else %}
+<section class="card">
+  <h2>No matching approval</h2>
+  <p>Nothing approved looks like this invoice. Check whether someone spent without raising a request first, and follow up with them.</p>
+</section>
+{% endfor %}
+{% endblock %}

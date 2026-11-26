@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Payments{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Approved spend</h1>
+    <p class="muted">What has been approved, what has been paid, and what is still to come.</p>
+  </div>
+</div>
+
+{% if user.can_record_payments %}
+<section class="card filters">
+  <h2>Match an invoice</h2>
+  {% if container.invoice_reading_enabled %}
+  <p class="muted small">Upload the supplier's invoice. Greenlight reads it and suggests which approval it belongs to. Nothing is paid until you confirm.</p>
+  <form method="post" action="/payments/read-invoice" enctype="multipart/form-data" class="field-row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="invoice" type="file" accept="application/pdf,image/*" required>
+    <button class="primary" type="submit">Read invoice</button>
+  </form>
+  {% else %}
+  <p class="muted small">Invoice reading is switched off on this environment. Record payments from each request.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="card flush">
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Request</th><th>Supplier</th><th>Raised by</th><th class="num">Approved</th><th class="num">Paid</th><th class="num">Left to pay</th></tr></thead>
+    <tbody>
+    {% for r in approved %}
+      <tr>
+        <td><a href="/requests/{{ r.reference }}">{{ r.reference }}</a><br><span class="small muted">{{ r.title }}</span></td>
+        <td>{{ r.supplier }}</td>
+        <td>{{ lookups.person(r.requester_id).name }}</td>
+        <td class="num">{{ r.approved_total_usd|usd }}</td>
+        <td class="num">{{ r.paid_usd|usd }}</td>
+        <td class="num">{% if r.outstanding_usd %}<strong>{{ r.outstanding_usd|usd }}</strong>{% else %}<span class="status paid">Paid</span>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="empty">Nothing approved yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}
