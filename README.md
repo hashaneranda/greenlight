@@ -33,6 +33,18 @@ src/greenlight/
 
 The domain has no framework imports. State changes raise domain events, and one handler turns them into audit entries and notifications, so nothing is audited by hand.
 
+Patterns, and where to find them:
+
+| Pattern | Where | Why |
+| --- | --- | --- |
+| Aggregate | `domain/spend_request.py` | Every rule about a request (who may decide, what a change does to an approval) lives on `SpendRequest`, so the UI and the commands can't disagree |
+| Policy / strategy | `domain/approval_policy.py` | Routing is data-driven (thresholds per category) and the org chart is injected through `ApproverDirectory` |
+| Domain events | `domain/events.py`, `application/event_handlers.py` | One place turns events into audit entries and notifications |
+| Ports and adapters | `application/ports.py` | Storage, invoice reading, clock and persistence can be swapped. Tests use in-memory fakes |
+| Repository + unit of work | `infrastructure/persistence` | One transaction per use case, and the request row is locked while a decision is made |
+| CQRS-lite | `application/use_cases.py` vs `application/queries.py` | Commands change state through the aggregate. Reads build view models |
+| Composition root | `web/container.py` | The only place that knows which adapters are wired in |
+
 Tests follow the same layers: domain tests with no I/O, use-case tests against in-memory adapters, persistence tests against a real database, and HTTP tests through FastAPI.
 
 ## Running it
