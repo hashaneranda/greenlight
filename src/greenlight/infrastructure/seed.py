@@ -264,6 +264,32 @@ def _sample_requests(approvals, people, categories, tags) -> None:
     approvals.reject(people["nadia"].id, rejected, "Let's use the in-house programme this year.")
 
     _decided_earlier(approvals, people, raise_request)
+    _waiting_for_nadia(approvals, people, tags, raise_request)
+
+
+def _waiting_for_nadia(approvals, people, tags, raise_request) -> None:
+    """Enough in the COO's queue that the one-at-a-time review has something to show."""
+    pump = raise_request(
+        "joseph",
+        "Site equipment and supplies",
+        "12800",
+        "USD",
+        title="Replacement water pump, Kolwezi plant",
+        supplier="Katanga Power Services",
+        why="The main dewatering pump failed its inspection and can't be repaired.",
+        tag_id=tags["kolwezi"].id,
+    )
+    approvals.approve(people["priya"].id, pump)
+
+    raise_request(
+        "priya",
+        "Professional services",
+        "3400",
+        "USD",
+        title="Safety audit, Geita site",
+        supplier="SafeMine Consulting",
+        why="The yearly external safety audit the mining licence requires.",
+    )
 
 
 def _decided_earlier(approvals, people, raise_request) -> None:
