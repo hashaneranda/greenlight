@@ -15,6 +15,7 @@
   - name the patterns you use (repository, unit of work, strategy, decorator, ports and adapters) and keep each class to one responsibility
   - small functions, typed signatures, no dead code, no speculative options
   - tests first (TDD), at the lowest layer that can prove the behaviour
+  - write like the existing code: plain domain names (`last_time`, `paid_so_far`, `hand_over_to`), never generic ones (`result_data`, `process_items`, `helper`); no comments that restate the code, no banner comments, no defensive checks for cases that can't happen. Before each commit, read the diff once only for names, comments and copy that sound machine-written, and fix them
 - Branches use a type prefix, one per phase, each created from the previous phase's branch so the PRs stack and merge in order:
   - `docs/first-version-upgrade-plan` (this design and plan)
   - `fix/review-card-and-precedent` (Tasks 1–2)
