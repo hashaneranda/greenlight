@@ -40,10 +40,13 @@ class Precedent:
     sent_back_before: list[SpendRequest]
     typical_usd: Decimal | None
     times_typical: Decimal | None
+    supplier_usd: Decimal | None
+    times_supplier: Decimal | None
 
     @property
     def is_unusually_high(self) -> bool:
-        return self.times_typical is not None and self.times_typical >= UNUSUALLY_HIGH
+        times = self.times_typical if self.times_supplier is None else self.times_supplier
+        return times is not None and times >= UNUSUALLY_HIGH
 
     @property
     def says_anything(self) -> bool:
@@ -60,12 +63,20 @@ def precedent_for(request: SpendRequest, history: Iterable[SpendRequest]) -> Pre
     ]
 
     typical = median(category_costs) if len(category_costs) >= ENOUGH_TO_COMPARE else None
+    approved_before = [r for r in same_supplier if r.status == RequestStatus.APPROVED]
+    last_time = approved_before[0].approved_total_usd if approved_before else None
     return Precedent(
-        approved_before=[r for r in same_supplier if r.status == RequestStatus.APPROVED],
+        approved_before=approved_before,
         sent_back_before=[r for r in same_supplier if r.status == RequestStatus.REJECTED],
         typical_usd=typical,
-        times_typical=(request.total_usd / typical).quantize(Decimal("0.1")) if typical else None,
+        times_typical=_times(request.total_usd, typical),
+        supplier_usd=last_time,
+        times_supplier=_times(request.total_usd, last_time),
     )
+
+
+def _times(amount: Decimal, base: Decimal | None) -> Decimal | None:
+    return (amount / base).quantize(Decimal("0.1")) if base else None
 
 
 @dataclass(frozen=True)
