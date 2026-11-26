@@ -7,7 +7,7 @@
     {% if editing %}
     {% if editing.request.status == "rejected" %}
     <h1>Fix and send again</h1>
-    <p>It was sent back because: "{{ editing.request.sent_back_reason }}". Change what's needed, say what you changed, and it goes back to the approvers.</p>
+    <p>It was sent back because: “{{ editing.request.sent_back_reason }}”. Change what's needed, say what you changed, and it goes back to the approvers.</p>
     {% else %}
     <h1>Change {{ editing.request.reference }}</h1>
     <p>Lowering the price keeps the approval. Raising it, or changing the category, sends it back for approval.</p>
