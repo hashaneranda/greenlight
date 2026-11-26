@@ -58,7 +58,7 @@
   {{ icon("spark") }}
   <span><strong>Filled in from {{ draft.kept.filename }}.</strong>
   {% if draft.filed_like %}Category and project are set the way {{ draft.filed_like }} from the same supplier was filed.{% endif %}
-  {% if draft.reading.unclear_fields %}Fields marked "Check this" were hard to read.{% else %}Check it, add why it's needed, and send.{% endif %}</span>
+  {% if draft.reading.unclear_fields %}Fields marked “Check this” were hard to read.{% else %}Check it, add why it's needed, and send.{% endif %}</span>
 </div>
 {% endif %}
 {% set unclear = draft.reading.unclear_fields if draft else () %}

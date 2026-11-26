@@ -44,7 +44,7 @@
     </form>
     <p class="muted small">Invoice for something confidential? Record the payment from the request instead, so the invoice isn't sent to AI.</p>
     {% else %}
-    <p class="notice warn">Invoice reading needs an OpenAI key, and none is set on this server yet. Until then, record payments from each request.</p>
+    <p class="notice warn">Invoice reading needs an AI key, and none is set on this server yet. Until then, record payments from each request.</p>
     {% endif %}
 
     {% if container.settings.environment != "production" %}

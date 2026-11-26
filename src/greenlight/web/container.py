@@ -6,7 +6,13 @@ from greenlight.application.queries import SpendQueries
 from greenlight.application.sign_in import MicrosoftSignIn
 from greenlight.application.use_cases import SpendApprovals
 from greenlight.config import Settings
-from greenlight.infrastructure.ai.openai_readers import OpenAIInvoiceReader, OpenAIQuoteReader
+from greenlight.infrastructure.ai.document_readers import (
+    AIInvoiceReader,
+    AIQuoteReader,
+    DocumentModel,
+)
+from greenlight.infrastructure.ai.groq_model import GroqModel
+from greenlight.infrastructure.ai.openai_model import OpenAIModel
 from greenlight.infrastructure.clock import SystemClock
 from greenlight.infrastructure.notifications.delivery import NotificationSender
 from greenlight.infrastructure.persistence.orm import start_mappers
@@ -23,9 +29,16 @@ class Container:
     notifications: NotificationSender
     microsoft_sign_in: MicrosoftSignIn
 
-    @property
-    def ai_enabled(self) -> bool:
-        return bool(self.settings.openai_api_key.get_secret_value())
+    ai_enabled: bool
+
+
+def document_model(settings: Settings) -> DocumentModel | None:
+    """Groq when its key is set, else OpenAI, else no AI reading at all."""
+    if groq_key := settings.groq_api_key.get_secret_value():
+        return GroqModel(groq_key, settings.groq_model)
+    if openai_key := settings.openai_api_key.get_secret_value():
+        return OpenAIModel(openai_key, settings.openai_model)
+    return None
 
 
 def build_container(settings: Settings) -> Container:
@@ -37,10 +50,9 @@ def build_container(settings: Settings) -> Container:
     def unit_of_work() -> SqlUnitOfWork:
         return SqlUnitOfWork(session_factory)
 
-    api_key = settings.openai_api_key.get_secret_value()
-    model = settings.openai_model
-    invoice_reader = OpenAIInvoiceReader(api_key, model) if api_key else None
-    quote_reader = OpenAIQuoteReader(api_key, model) if api_key else None
+    model = document_model(settings)
+    invoice_reader = AIInvoiceReader(model) if model else None
+    quote_reader = AIQuoteReader(model) if model else None
     return Container(
         settings=settings,
         session_factory=session_factory,
@@ -55,4 +67,5 @@ def build_container(settings: Settings) -> Container:
         queries=SpendQueries(unit_of_work, clock),
         notifications=NotificationSender(settings, session_factory),
         microsoft_sign_in=MicrosoftSignIn(unit_of_work),
+        ai_enabled=model is not None,
     )
