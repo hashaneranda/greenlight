@@ -208,6 +208,15 @@ def test_a_sent_back_request_can_be_fixed_and_sent_again(client):
     assert "Waiting for" in client.get(f"/requests/{reference}").text
 
 
+def test_the_demo_starts_with_only_what_still_needs_each_approver_unread(client):
+    sign_in_as(client, "Nadia Frost")
+
+    home = client.get("/").text
+    waiting = int(re.search(r"Nadia, (\d+) need", home).group(1))
+
+    assert re.search(rf'class="count">{waiting}<', home)
+
+
 def test_the_approver_is_told_until_they_open_their_inbox(client):
     sign_in_as(client, "Joseph Kabila Mwamba")
     client.get("/inbox")
