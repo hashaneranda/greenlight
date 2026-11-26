@@ -1,4 +1,5 @@
 import io
+from collections.abc import Callable
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -11,7 +12,12 @@ from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 from greenlight.config import Settings
 from greenlight.domain.errors import InvalidRequest
-from greenlight.infrastructure.ai.document_readers import AIInvoiceReader, AIQuoteReader
+from greenlight.infrastructure.ai.document_readers import (
+    AIInvoiceReader,
+    AIQuoteReader,
+    InvoiceFields,
+    Usage,
+)
 from greenlight.infrastructure.ai.groq_model import GROQ_URL, MOST_TEXT, GroqModel
 from greenlight.infrastructure.ai.openai_model import OpenAIModel
 from greenlight.infrastructure.ai.remembered_readings import RememberedReadings
@@ -42,8 +48,19 @@ class FakeChat:
         return self.calls[-1]["messages"][1]["content"]
 
 
-def groq(client: FakeChat) -> GroqModel:
-    return GroqModel("key", "qwen/qwen3.8-27b", client=client)
+class FakeResponses:
+    def __init__(self):
+        self.responses = SimpleNamespace(parse=self._parse)
+
+    def _parse(self, text_format, **request):
+        usage = SimpleNamespace(input_tokens=1400, output_tokens=210)
+        return SimpleNamespace(
+            output_parsed=text_format.model_validate_json(INVOICE_JSON), usage=usage
+        )
+
+
+def groq(client: FakeChat, on_usage: Callable[[Usage], None] | None = None) -> GroqModel:
+    return GroqModel("key", "qwen/qwen3.8-27b", client=client, on_usage=on_usage)
 
 
 def pdf_with_text(text: str) -> bytes:
@@ -152,6 +169,35 @@ def test_a_failed_read_is_not_remembered_so_it_can_be_tried_again():
             reader.read(b"blurred", "image/png")
 
     assert len(client.calls) == 2
+
+
+def test_a_groq_read_reports_the_tokens_it_used():
+    seen: list[Usage] = []
+    AIInvoiceReader(groq(FakeChat(), on_usage=seen.append)).read(b"img", "image/png")
+
+    assert seen == [Usage(prompt_tokens=900, completion_tokens=120)]
+
+
+def test_an_openai_read_reports_the_tokens_it_used():
+    seen: list[Usage] = []
+    model = OpenAIModel("key", "gpt-5.4-mini", client=FakeResponses(), on_usage=seen.append)
+    AIInvoiceReader(model).read(b"img", "image/png")
+
+    assert seen == [Usage(prompt_tokens=1400, completion_tokens=210)]
+
+
+def test_an_openai_read_works_without_anyone_counting_tokens():
+    model = OpenAIModel("key", "gpt-5.4-mini", client=FakeResponses())
+    assert model.fill(b"img", "image/png", "Read it.", InvoiceFields).invoice_number == "INV-204"
+
+
+def test_a_remembered_reading_costs_no_tokens():
+    seen: list[Usage] = []
+    reader = AIInvoiceReader(RememberedReadings(groq(FakeChat(), on_usage=seen.append)))
+    reader.read(b"invoice one", "image/png")
+    reader.read(b"invoice one", "image/png")
+
+    assert len(seen) == 1
 
 
 def test_groq_is_used_when_its_key_is_set_and_openai_otherwise():
