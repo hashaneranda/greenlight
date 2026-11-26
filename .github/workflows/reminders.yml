@@ -1,0 +1,19 @@
+name: Approval reminders
+
+on:
+  schedule:
+    - cron: "0 5 * * 1-5"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    if: ${{ vars.GREENLIGHT_URL != '' }}
+    steps:
+      - name: Nudge approvers who haven't acted
+        run: |
+          curl --fail --silent --show-error -X POST \
+            -H "Authorization: Bearer ${{ secrets.GREENLIGHT_CRON_TOKEN }}" \
+            "${{ vars.GREENLIGHT_URL }}/jobs/reminders"

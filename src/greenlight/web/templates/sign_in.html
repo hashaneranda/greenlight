@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Who are you today?</h1>
+    <p class="muted">This is the demo. In production everyone signs in with their Microsoft work account, so there is no extra password.</p>
+  </div>
+</div>
+<form method="post" action="/sign-in/demo" class="persona-grid">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for person in people %}
+  <button class="persona" name="employee_id" value="{{ person.id }}">
+    <span class="avatar">{{ person.initials }}</span>
+    <span>
+      <strong>{{ person.name }}</strong><br>
+      <span class="role">{{ person.job_title }}{% set manager = lookups.person(person.manager_id) %}{% if manager %} · reports to {{ manager.first_name }}{% endif %}</span>
+    </span>
+    <span class="tags">
+      {% if "executive_approver" in person.roles %}<span class="pill">Approves big spend</span>{% endif %}
+      {% if "it_approver" in person.roles %}<span class="pill">Approves IT</span>{% endif %}
+      {% if "finance" in person.roles %}<span class="pill">Finance</span>{% endif %}
+      {% if "admin" in person.roles %}<span class="pill">Admin</span>{% endif %}
+    </span>
+  </button>
+  {% endfor %}
+</form>
+{% endblock %}
