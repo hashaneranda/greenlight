@@ -15,7 +15,7 @@ One vivid signal green is the only accent. It is always a fill with ink on it: t
 | Display | Archivo, self-hosted variable font, set heavy (800 to 900) and condensed (`--condensed: 75%`) | Page titles, section titles, counts and money |
 | Reading | The platform's own font: SF Pro on Apple devices, Segoe UI on Windows, Roboto on Android | Body text, labels, form fields, buttons, hints |
 
-Page titles are uppercase and tight ("NADIA, 3 NEED YOUR OK"). Money always uses tabular figures, and an amount in a local currency always shows its US dollar value too.
+Page titles are uppercase and tight ("NADIA, 3 NEED YOUR OK"). On a request, in a list or on a review card the amount is the one giant, so the request's own title stays in normal case below it. Money always uses tabular figures, and an amount in a local currency always shows its US dollar value too.
 
 | Token | Size | Use |
 | --- | --- | --- |
