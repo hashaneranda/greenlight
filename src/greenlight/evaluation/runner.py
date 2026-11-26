@@ -75,15 +75,22 @@ def run(
     label: str,
     model_name: str,
     ran_on: date,
+    pause: Callable[[], None] = lambda: None,
 ) -> Run:
     """Every case really reaches the model: nothing is remembered between reads.
 
     A case the model never saw says nothing about how well it reads, so a run stops with
-    `ModelUnavailable` rather than scoring it as a refusal.
+    `ModelUnavailable` rather than scoring it as a refusal. `pause` runs before every case
+    but the first, outside the timing, to stay under a provider's rate limit.
     """
     spent: list[Usage] = []
     recorder = AnswerRecorder(model(spent.append))
-    return Run(label, model_name, ran_on, tuple(_run_case(case, recorder, spent) for case in cases))
+    results = []
+    for number, case in enumerate(cases):
+        if number:
+            pause()
+        results.append(_run_case(case, recorder, spent))
+    return Run(label, model_name, ran_on, tuple(results))
 
 
 def replay(cases: Sequence[Case], recording: Recording) -> Run:
