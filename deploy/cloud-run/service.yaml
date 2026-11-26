@@ -34,7 +34,7 @@ spec:
               valueFrom: { secretKeyRef: { name: greenlight-secret-key, key: latest } }
             - name: ENTRA_CLIENT_SECRET
               valueFrom: { secretKeyRef: { name: greenlight-entra-secret, key: latest } }
-            - name: OPENAI_API_KEY
-              valueFrom: { secretKeyRef: { name: greenlight-openai-key, key: latest } }
+            - name: GROQ_API_KEY
+              valueFrom: { secretKeyRef: { name: greenlight-groq-key, key: latest } }
             - name: CRON_TOKEN
               valueFrom: { secretKeyRef: { name: greenlight-cron-token, key: latest } }
