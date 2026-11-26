@@ -10,7 +10,6 @@ from greenlight.application.use_cases import SpendApprovals, Upload
 from greenlight.domain.people import Department
 from greenlight.domain.spend_request import RequestStatus
 from greenlight.infrastructure.persistence import tables
-from greenlight.infrastructure.persistence.orm import start_mappers
 from greenlight.infrastructure.persistence.unit_of_work import SqlUnitOfWork, make_engine
 from greenlight.infrastructure.storage.database import DatabaseFileStorage
 from tests.application.fakes import FixedClock
@@ -20,11 +19,10 @@ PDF = Upload("quote.pdf", "application/pdf", b"%PDF-1.7 quote")
 
 
 @pytest.fixture
-def engine(tmp_path):
-    start_mappers()
-    engine = make_engine(f"sqlite:///{tmp_path / 'test.db'}")
-    tables.metadata.create_all(engine)
-    return engine
+def engine(database_url):
+    engine = make_engine(database_url)
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture
