@@ -44,6 +44,8 @@ class Settings(BaseSettings):
         weak_secret = secret == DEFAULT_SECRET or len(secret) < 32
         if weak_secret and not self.is_local:
             raise ValueError("Set SECRET_KEY to a random value of at least 32 characters.")
+        if self.database_url.startswith("sqlite") and not self.is_local:
+            raise ValueError("Set DATABASE_URL to the Postgres connection string.")
         if self.environment != "production":
             return self
         if self.sign_in == "demo":
