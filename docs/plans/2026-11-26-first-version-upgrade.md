@@ -452,6 +452,8 @@ One commit per screen; screenshot each at 390×844 and 1440×900 as the relevant
    - phone: a bottom tab bar with a central signal "+" and safe-area padding
    - desktop: a sidebar with one "New request" button, the nav grouped by role (Admin: People; Finance: Categories, Rates), and the bell
    - remove the duplicate "New request" button from the page header
+   - on phones, the role pages (People, Categories, Exchange rates, Approval rules, Audit log) are reachable from a "More" sheet or the avatar menu; today only the URL reaches them
+   - the audit history labels `approval_rule_changed` like the other actions
 2. **Sign-in**: big display headline, the three-step story as bold numbered rows, persona list.
 3. **Home**, varying by role:
    - approver: "N WAITING ON YOU" display, the first request as a decision card, then the rest
