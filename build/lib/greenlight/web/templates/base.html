@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>{% block title %}Greenlight{% endblock %} · Greenlight</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+  <link rel="icon" href="{{ url_for('static', path='icon.svg') }}" type="image/svg+xml">
+</head>
+<body>
+{% set path = request.url.path %}
+{% macro nav_link(href, label, exact=False) -%}
+  {% set active = path == href if exact else (path.startswith(href) and not (href == "/requests" and path == "/requests/new")) %}
+  <a href="{{ href }}" {% if active %}aria-current="page"{% endif %}>{{ label }}</a>
+{%- endmacro %}
+<header class="topbar">
+  <div class="wrap inner">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>Greenlight</a>
+    {% if user %}
+    <nav class="mainnav" aria-label="Main">
+      {{ nav_link("/", "Home", exact=True) }}
+      {{ nav_link("/requests", "Requests") }}
+      {{ nav_link("/insights", "Insights") }}
+      {% if user.sees_all_spend %}{{ nav_link("/payments", "Payments") }}{% endif %}
+      {{ nav_link("/cover", "Cover") }}
+      {% if user.can_read_audit_log %}{{ nav_link("/audit", "Audit") }}{% endif %}
+    </nav>
+    <div class="who">
+      <span class="avatar" title="{{ user.name }}">{{ user.initials }}</span>
+      <form method="post" action="/sign-out">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="link small" type="submit">{% if container.settings.sign_in == "demo" %}Switch person{% else %}Sign out{% endif %}</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</header>
+
+<main class="wrap">
+  {% if flash %}<div class="notice {{ flash.kind }}" role="status">{{ flash.message }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+
+{% if user %}
+<nav class="tabbar" aria-label="Main">
+  {{ nav_link("/", "Home", exact=True) }}
+  {{ nav_link("/requests/new", "New") }}
+  {{ nav_link("/requests", "Requests") }}
+  {{ nav_link("/insights", "Insights") }}
+  {% if user.sees_all_spend %}{{ nav_link("/payments", "Payments") }}{% else %}{{ nav_link("/cover", "Cover") }}{% endif %}
+</nav>
+{% endif %}
+</body>
+</html>
