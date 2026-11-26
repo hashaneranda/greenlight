@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.orm import sessionmaker
@@ -92,6 +93,16 @@ def test_references_are_sequential(company, services):
     second = approvals.submit(company.sam.id, details(company.general), [PDF])
 
     assert (first, second) == ("GL-00001", "GL-00002")
+
+
+def test_references_are_looked_up_without_loading_the_requests(company, services):
+    approvals, _, factory, _ = services
+    reference = approvals.submit(company.sam.id, details(company.general), [PDF])
+
+    with SqlUnitOfWork(factory) as uow:
+        request_id = uow.requests.by_reference(reference).id
+        unknown = uuid4()
+        assert uow.requests.references([request_id, unknown]) == {request_id: reference}
 
 
 def test_cover_and_reminders_work_against_the_database(company, services):

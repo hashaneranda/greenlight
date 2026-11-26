@@ -360,7 +360,11 @@ class SpendQueries:
 
     def inbox(self, user_id: UUID) -> list[InboxItem]:
         with self._unit_of_work() as uow:
-            return [_inbox_item(uow, n) for n in uow.outbox.for_recipient(user_id)]
+            notifications = uow.outbox.for_recipient(user_id)
+            references = uow.requests.references(
+                {n.request_id for n in notifications if n.request_id}
+            )
+            return [_inbox_item(n, references) for n in notifications]
 
     def unread_count(self, user_id: UUID) -> int:
         with self._unit_of_work() as uow:
@@ -388,12 +392,11 @@ def _waiting(
     return sorted(waiting, key=lambda r: r.pending_step.activated_at)
 
 
-def _inbox_item(uow: UnitOfWork, notification: OutgoingNotification) -> InboxItem:
-    request = uow.requests.get(notification.request_id) if notification.request_id else None
+def _inbox_item(notification: OutgoingNotification, references: dict[UUID, str]) -> InboxItem:
     return InboxItem(
         subject=notification.subject,
         body=notification.body,
-        reference=request.reference if request else None,
+        reference=references.get(notification.request_id),
         created_at=notification.created_at,
         channel=notification.channel,
         delivery_error=notification.delivery_error,

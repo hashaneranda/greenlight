@@ -37,6 +37,9 @@ class InMemoryRequests:
     def with_status(self, status):
         return [r for r in self.items.values() if r.status == status]
 
+    def references(self, request_ids):
+        return {i: self.items[i].reference for i in request_ids if i in self.items}
+
 
 class InMemoryPeople:
     def __init__(

@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
@@ -63,6 +64,13 @@ class SqlSpendRequests:
                 select(SpendRequest).where(tables.spend_requests.c.status == status)
             )
         )
+
+    def references(self, request_ids: Collection[UUID]) -> dict[UUID, str]:
+        columns = tables.spend_requests.c
+        rows = self._session.execute(
+            select(columns.id, columns.reference).where(columns.id.in_(request_ids))
+        )
+        return {row.id: row.reference for row in rows}
 
 
 class SqlPeople:
