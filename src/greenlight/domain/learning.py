@@ -12,7 +12,7 @@ from uuid import UUID
 
 from greenlight.domain.approval_policy import ApprovalPolicy, ApprovalStage
 from greenlight.domain.catalog import Category
-from greenlight.domain.invoice_matching import supplier_similarity
+from greenlight.domain.invoice_matching import SAME_SUPPLIER, supplier_similarity
 from greenlight.domain.spend_request import (
     ApprovalStep,
     RequestStatus,
@@ -20,7 +20,6 @@ from greenlight.domain.spend_request import (
     StepStatus,
 )
 
-SAME_SUPPLIER = 0.8
 UNUSUALLY_HIGH = Decimal("2")
 ENOUGH_TO_COMPARE = 3
 ENOUGH_TO_CHANGE_A_RULE = 5

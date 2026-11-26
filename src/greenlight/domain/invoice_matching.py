@@ -8,6 +8,7 @@ from difflib import SequenceMatcher
 from greenlight.domain.money import Money
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 
+SAME_SUPPLIER = 0.8
 _COMPANY_SUFFIXES = re.compile(
     r"\b(ltd|limited|llc|l\.l\.c|inc|plc|gmbh|fze|fzco|fz-llc|co|company|sarl|pty)\b\.?"
 )
@@ -110,7 +111,7 @@ def rank_matches(
         score += 0.5 * supplier_score
         if supplier_score < 0.6:
             continue
-        if supplier_score >= 0.8:
+        if supplier_score >= SAME_SUPPLIER:
             reasons.append("Supplier matches")
 
         quotes_reference = invoice.purchase_reference.upper() == request.reference
@@ -149,6 +150,6 @@ def check_invoice(
         request
         for request in candidates
         if request.status == RequestStatus.PENDING
-        and supplier_similarity(invoice.supplier, request.supplier) >= 0.8
+        and supplier_similarity(invoice.supplier, request.supplier) >= SAME_SUPPLIER
     ]
     return InvoiceCheck(invoice, rank_matches(invoice, candidates, usd_rate), awaiting)
