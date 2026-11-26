@@ -500,6 +500,16 @@ Apply the system to `inbox.html`, `manage/*`, `cover.html`, `rules.html` and `au
 
 Commit: "Make every screen work by keyboard and on small phones".
 
+### Task 19b: Make the reader say when it is unsure (branch `feat/ai-uncertainty`)
+
+Found while building Task 16: across every real read the model never listed an unclear field, and on a blurred photo of the Copperbelt quote it read the supplier as "Greenfield Catering" without flagging it. The evaluation could not see this, because none of its documents is hard enough to make the model wrong, so calibration reads "no mistakes, nothing to flag".
+
+1. Add hard cases to `evals/make_documents.py`: a blurred, low-resolution photo of a quote (supplier and total hard to read); a recurring quote with no contract length printed (term must be unclear, not guessed); a quote whose total is partly covered by a stamp. Expected values are what is printed; `expect_unclear` lists the fields an honest reader should flag.
+2. Score calibration against `expect_unclear` as well as against actual mistakes, and report it.
+3. Record a run with today's prompt: the baseline.
+4. Change the prompt so the model must flag any field it inferred rather than read, or could not read with certainty, and drop a guessed value rather than invent one. Re-run and record. Keep the change only if it raises flag recall without lowering field accuracy on the original 15 cases.
+5. `docs/ai-evaluation.md` gains a "Changes" section with both runs' numbers. CI keeps guarding the latest recording.
+
 ---
 
 ## Phase 5: Delivery
