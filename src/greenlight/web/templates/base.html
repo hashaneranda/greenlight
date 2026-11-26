@@ -17,7 +17,7 @@
   {% if count %}<span class="count">{{ count }}<span class="visually-hidden"> new</span></span>{% endif %}
 {%- endmacro %}
 {% macro nav_link(href, label, glyph, exact=False, count=0) -%}
-  {% set active = path == href if exact else (path.startswith(href) and not (href == "/requests" and path == "/requests/new")) %}
+  {% set active = path == href if exact else (path.startswith(href) and not (href == "/requests" and path.startswith("/requests/new"))) %}
   <a href="{{ href }}" {% if active %}aria-current="page"{% endif %}>{{ icon(glyph) }}<span>{{ label }}</span>{{ new_count(count) }}</a>
 {%- endmacro %}
 {% macro switch_person(kind="link small") -%}
@@ -86,7 +86,7 @@
 <nav class="tabbar" aria-label="Main">
   {{ nav_link("/", "Home", "home", exact=True) }}
   {{ nav_link("/requests", "Requests", "requests") }}
-  <a class="raise" href="/requests/new" {% if path == "/requests/new" %}aria-current="page"{% endif %}><span class="plus">{{ icon("plus") }}</span><span>New</span></a>
+  <a class="raise" href="/requests/new" {% if path.startswith("/requests/new") %}aria-current="page"{% endif %}><span class="plus">{{ icon("plus") }}</span><span>New</span></a>
   {{ nav_link("/insights", "Insights", "insights") }}
   {% if user.sees_all_spend %}{{ nav_link("/payments", "Payments", "payments") }}{% else %}{{ nav_link("/cover", "Cover", "cover") }}{% endif %}
 </nav>
