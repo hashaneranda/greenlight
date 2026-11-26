@@ -515,6 +515,8 @@ Commit: "Make every screen work by keyboard and on small phones".
   - what was built
   - what was assumed: the $5,000 threshold, placeholder categories, the reading of "IT always" (to be confirmed), finance-set exchange rates
   - what was left out and why: Graph directory sync, a live FX feed
+  - the model risk: `qwen/qwen3.8-27b` is a Groq Preview model, "for evaluation purposes only" and liable to be withdrawn at short notice (Groq models page, 27 Nov 2026). For Orvane, move to a production model and re-run `greenlight eval` before switching; the recording and CI check make that a measured change
+  - the free tier's 1,000 output tokens a minute: one evaluation read still waited on it (the 12.8 s 95th percentile); a paid tier removes it
   - what comes next
 - A draft email to Nadia, in the conversation and not in the repo. The user sends it.
 - Commit: "Add the note for the first version".
