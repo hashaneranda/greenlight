@@ -59,7 +59,7 @@ def test_running_locally_works_without_setting_a_secret():
     assert Settings(base_url="http://localhost:8000").is_local
 
 
-def test_invoice_reads_are_limited_per_person():
+def test_ai_reads_are_limited_per_person():
     limit = HourlyLimit(per_hour=2)
 
     assert limit.allow("tom") and limit.allow("tom")

@@ -76,7 +76,7 @@ def normalise_supplier(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", cleaned).strip()
 
 
-def _supplier_similarity(left: str, right: str) -> float:
+def supplier_similarity(left: str, right: str) -> float:
     a, b = normalise_supplier(left), normalise_supplier(right)
     if not a or not b:
         return 0.0
@@ -106,7 +106,7 @@ def rank_matches(
         warnings: list[str] = []
         score = 0.0
 
-        supplier_score = _supplier_similarity(invoice.supplier, request.supplier)
+        supplier_score = supplier_similarity(invoice.supplier, request.supplier)
         score += 0.5 * supplier_score
         if supplier_score < 0.6:
             continue
@@ -149,6 +149,6 @@ def check_invoice(
         request
         for request in candidates
         if request.status == RequestStatus.PENDING
-        and _supplier_similarity(invoice.supplier, request.supplier) >= 0.8
+        and supplier_similarity(invoice.supplier, request.supplier) >= 0.8
     ]
     return InvoiceCheck(invoice, rank_matches(invoice, candidates, usd_rate), awaiting)

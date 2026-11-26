@@ -9,6 +9,7 @@ from greenlight.domain.catalog import Category, Tag
 from greenlight.domain.cover import Cover
 from greenlight.domain.invoice_matching import Invoice
 from greenlight.domain.people import Department, Employee, Role, Site
+from greenlight.domain.quote_reading import QuoteReading
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 
 
@@ -58,6 +59,8 @@ class Catalog(Protocol):
     def add_tag(self, tag: Tag) -> None: ...
 
     def approval_policy(self) -> ApprovalPolicy: ...
+
+    def set_executive_threshold(self, category_id: UUID, amount_usd: Decimal) -> None: ...
 
     def usd_rate(self, currency: str) -> Decimal | None: ...
 
@@ -134,6 +137,10 @@ class FileStorage(Protocol):
 
 class InvoiceReader(Protocol):
     def read(self, content: bytes, content_type: str) -> Invoice: ...
+
+
+class QuoteReader(Protocol):
+    def read(self, content: bytes, content_type: str, categories: list[str]) -> QuoteReading: ...
 
 
 class Clock(Protocol):

@@ -1,6 +1,8 @@
 import secrets
 from datetime import date, timedelta
+from decimal import Decimal
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -26,6 +28,30 @@ def audit_log(request: Request, user: CurrentUser):
         references={r.id: r.reference for r in queries.visible_requests(user.id)},
         lookups=queries.lookups(),
     )
+
+
+@router.get("/rules")
+def rules(request: Request, user: CurrentUser):
+    return render(request, "rules.html", rules=container_of(request).queries.rules(user.id))
+
+
+@router.post("/rules/coo-limit", dependencies=[Depends(verify_csrf)])
+async def change_coo_limit(request: Request, user: CurrentUser):
+    form = await request.form()
+    try:
+        amount = Decimal(form.get("amount_usd", "").replace(",", ""))
+        container_of(request).approvals.change_coo_limit(
+            user.id,
+            UUID(form.get("category_id", "")),
+            amount,
+            suggested=form.get("suggested") == "yes",
+        )
+        flash(request, "Rule changed. It applies to requests raised from now on.")
+    except (ValueError, ArithmeticError):
+        flash(request, "Enter the limit as a number of US dollars.", "error")
+    except DomainError as error:
+        flash(request, str(error), "error")
+    return RedirectResponse("/rules", status_code=303)
 
 
 @router.post("/trips", dependencies=[Depends(verify_csrf)])

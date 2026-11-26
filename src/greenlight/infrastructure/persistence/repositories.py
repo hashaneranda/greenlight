@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.orm import Session
 
 from greenlight.application import audit_chain
@@ -130,6 +130,18 @@ class SqlCatalog:
                 row.category_id: row.amount_usd for row in rows if row.category_id is not None
             },
         )
+
+    def set_executive_threshold(self, category_id: UUID, amount_usd: Decimal) -> None:
+        thresholds = tables.approval_thresholds
+        changed = self._session.execute(
+            update(thresholds)
+            .where(thresholds.c.category_id == category_id)
+            .values(amount_usd=amount_usd)
+        )
+        if changed.rowcount == 0:
+            self._session.execute(
+                insert(thresholds).values(category_id=category_id, amount_usd=amount_usd)
+            )
 
     def usd_rate(self, currency: str) -> Decimal | None:
         if currency == BASE_CURRENCY:

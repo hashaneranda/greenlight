@@ -32,7 +32,7 @@
       <li><span class="light pending"></span><span><strong>Flag</strong> invoices over the approval, or with no approval at all</span></li>
     </ol>
 
-    {% if container.invoice_reading_enabled %}
+    {% if container.ai_enabled %}
     <form method="post" action="/payments/read-invoice" enctype="multipart/form-data" class="upload">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <label class="drop" for="invoice">
@@ -42,6 +42,7 @@
       </label>
       <button class="primary" type="submit" data-busy="Reading the invoice…">{{ icon("spark") }}Read and match</button>
     </form>
+    <p class="muted small">Invoice for something confidential? Record the payment from the request instead, so the invoice isn't sent to AI.</p>
     {% else %}
     <p class="notice warn">Invoice reading needs an OpenAI key, and none is set on this server yet. Until then, record payments from each request.</p>
     {% endif %}

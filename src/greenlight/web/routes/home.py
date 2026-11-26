@@ -9,11 +9,14 @@ router = APIRouter()
 @router.get("/")
 def home(request: Request, user: CurrentUser):
     queries = container_of(request).queries
+    suggestions = queries.rules(user.id).suggestions if user.sees_all_spend else []
     return render(
         request,
         "home.html",
+        suggestions=suggestions,
         waiting=queries.waiting_for(user.id),
         mine=queries.my_requests(user.id)[:6],
+        board=queries.dashboard(user.id),
         lookups=queries.lookups(),
     )
 

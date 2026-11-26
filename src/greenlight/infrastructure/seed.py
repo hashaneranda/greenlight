@@ -262,3 +262,80 @@ def _sample_requests(approvals, people, categories, tags) -> None:
         why="Leadership programme for two managers.",
     )
     approvals.reject(people["nadia"].id, rejected, "Let's use the in-house programme this year.")
+
+    _decided_earlier(approvals, people, raise_request)
+
+
+def _decided_earlier(approvals, people, raise_request) -> None:
+    """Past decisions, paid and closed, so there is something for Greenlight to learn from."""
+    today = SystemClock().now().date()
+
+    def approved_and_paid(who, category, amount, title, supplier, approvers):
+        reference = raise_request(
+            who,
+            category,
+            amount,
+            "USD",
+            title=title,
+            supplier=supplier,
+            why="Renewal agreed in the annual plan.",
+        )
+        for approver in approvers:
+            approvals.approve(people[approver].id, reference)
+        approvals.record_payment(
+            people["leila"].id,
+            reference,
+            invoice_reference=f"INV-{reference[-3:]}",
+            amount=Money(Decimal(amount), "USD"),
+            paid_on=today,
+        )
+
+    for title, supplier, amount in (
+        ("Microsoft 365 renewal", "Microsoft", "6800"),
+        ("Design tool licences", "Figma Inc", "5400"),
+        ("Atlassian cloud renewal", "Atlassian", "7200"),
+        ("Endpoint security renewal", "SentinelOne", "5900"),
+        ("Video call licences", "Zoom Communications", "5600"),
+    ):
+        approved_and_paid(
+            "omar", "Software and subscriptions", amount, title, supplier, ["daniel", "nadia"]
+        )
+
+    for title, supplier, amount, approvers in (
+        ("Safety boots for the site crew", "Copperbelt Safety", "2100", ["priya"]),
+        ("PPE restock", "Copperbelt Safety", "2600", ["priya"]),
+        ("Generator service, last season", "Katanga Power Services", "16500", ["priya", "nadia"]),
+    ):
+        approved_and_paid(
+            "joseph", "Site equipment and supplies", amount, title, supplier, approvers
+        )
+
+    for who, manager, title, supplier, amount, reason in (
+        (
+            "grace",
+            "joseph",
+            "Paint the site office",
+            "Kolwezi Decor",
+            "1200",
+            "Please get a written quote first.",
+        ),
+        (
+            "amina",
+            "baraka",
+            "Deep clean of the Geita office",
+            "CleanPro Geita",
+            "800",
+            "Attach the quote so finance can check the price.",
+        ),
+    ):
+        reference = raise_request(
+            who,
+            "Facilities",
+            amount,
+            "USD",
+            title=title,
+            supplier=supplier,
+            why="Overdue maintenance.",
+            no_quote_reason="The supplier doesn't do written quotes.",
+        )
+        approvals.reject(people[manager].id, reference, reason)

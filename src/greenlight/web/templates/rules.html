@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% block title %}Approval rules{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Approval rules</h1>
+    <p>Who has to say yes. Greenlight watches how requests are decided and suggests changes, but a rule only changes when {{ "you accept" if rules.can_change else "the COO accepts" }} it. Every change goes in the audit log.</p>
+  </div>
+</div>
+
+{% if rules.suggestions %}
+<section class="sheet ai-panel" aria-labelledby="suggest-heading">
+  <div class="body">
+    <div class="ai-head">
+      <span class="ai-icon">{{ icon("spark") }}</span>
+      <div>
+        <h2 id="suggest-heading">Suggested from past decisions</h2>
+        <p class="muted">Based on how the COO has decided requests so far.</p>
+      </div>
+    </div>
+    <ul class="suggestions">
+      {% for s in rules.suggestions %}
+      <li>
+        <p><strong>Raise the COO limit for {{ s.category.name|lower }} from {{ s.current_usd|usd }} to {{ s.suggested_usd|usd }}</strong></p>
+        <p class="muted">The COO approved all {{ s.evidence }} {{ s.category.name|lower }} requests that needed them, and sent none back. {% set hours = s.median_hours|round|int %}The typical one was approved {{ "within the hour" if hours < 1 else "in " ~ hours ~ (" hour" if hours == 1 else " hours") }}. Line managers{% if s.category.requires_it_review %} and IT{% endif %} would still approve them.</p>
+        {% if rules.can_change %}
+        <form method="post" action="/rules/coo-limit">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="category_id" value="{{ s.category.id }}">
+          <input type="hidden" name="amount_usd" value="{{ s.suggested_usd }}">
+          <input type="hidden" name="suggested" value="yes">
+          <button class="primary" type="submit" data-busy="Changing…">Accept</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endif %}
+
+<section class="sheet" aria-labelledby="always-heading">
+  <div class="sheet-head"><h2 id="always-heading">Every request</h2></div>
+  <div class="body">
+    <ul class="reasons">
+      <li class="yes">{{ icon("check") }}<span>The requester's line manager approves first.</span></li>
+      <li class="yes">{{ icon("check") }}<span>IT approves anything in an IT category, whatever the amount.</span></li>
+      <li class="yes">{{ icon("check") }}<span>The COO approves anything at or over the limit below, counting the whole contract for subscriptions.</span></li>
+      <li class="yes">{{ icon("check") }}<span>Nobody approves the same request twice. If they're on the route more than once, one yes counts for both.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sheet" aria-labelledby="limits-heading">
+  <div class="sheet-head"><h2 id="limits-heading">COO limit by category</h2></div>
+  <ul class="rows">
+    {% for limit in rules.limits %}
+    <li class="row">
+      <span class="title">{{ limit.category.name }}</span>
+      <span class="amount">{{ limit.limit_usd|usd if limit.limit_usd else "No limit" }}</span>
+      <span class="sub">{{ "Company default" if limit.is_default else "Set for this category" }}{% if limit.category.requires_it_review %}, IT approves too{% endif %}</span>
+      {% if rules.can_change %}
+      <details class="sub end">
+        <summary>Change</summary>
+        <form method="post" action="/rules/coo-limit" class="inline-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="category_id" value="{{ limit.category.id }}">
+          <label class="visually-hidden" for="limit-{{ loop.index }}">New COO limit in US dollars</label>
+          <input id="limit-{{ loop.index }}" name="amount_usd" inputmode="decimal" required value="{{ limit.limit_usd|int if limit.limit_usd else '' }}">
+          <button type="submit">Save</button>
+        </form>
+      </details>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

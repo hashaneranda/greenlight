@@ -3,10 +3,10 @@ from urllib.parse import quote as quote_url
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.datastructures import FormData, UploadFile
 
-from greenlight.application.use_cases import Upload
+from greenlight.application.use_cases import KeptQuote, QuoteDraft, Upload
 from greenlight.domain.errors import DomainError, InvalidRequest
 from greenlight.domain.money import Money
 from greenlight.domain.spend_request import BillingPeriod, RequestStatus, SpendDetails
@@ -119,9 +119,94 @@ def list_requests(
     )
 
 
+def _values_from(draft: QuoteDraft) -> dict:
+    reading = draft.reading
+    return {
+        "title": reading.title,
+        "supplier": reading.supplier,
+        "amount": f"{reading.amount:f}",
+        "currency": reading.currency,
+        "recurring": "yes" if reading.is_recurring else "",
+        "billing_period": reading.billing_period or "",
+        "term_months": reading.term_months or "",
+        "category_id": str(draft.category_id or ""),
+        "tag_id": str(draft.tag_id or ""),
+        "kept_quote": draft.kept.sha256,
+        "kept_quote_name": draft.kept.filename,
+        "kept_quote_type": draft.kept.content_type,
+    }
+
+
+def _confidential_values(kept: KeptQuote) -> dict:
+    return {
+        "currency": "USD",
+        "confidential": "yes",
+        "kept_quote": kept.sha256,
+        "kept_quote_name": kept.filename,
+        "kept_quote_type": kept.content_type,
+    }
+
+
+async def _all_quotes(form: FormData, approvals) -> list[Upload]:
+    uploads = await _uploads(form)
+    if form.get("kept_quote"):
+        kept = KeptQuote(
+            form.get("kept_quote", ""),
+            form.get("kept_quote_name", "quote"),
+            form.get("kept_quote_type", ""),
+        )
+        uploads.append(approvals.kept_upload(kept))
+    return uploads
+
+
 @router.get("/new")
 def new_request(request: Request, user: CurrentUser):
     return _form_page(request, "requests/form.html", values={"currency": "USD"})
+
+
+@router.post("/new/read-quote", dependencies=[Depends(verify_csrf)])
+async def read_quote(request: Request, user: CurrentUser):
+    container = container_of(request)
+    form = await request.form()
+    uploads = await _uploads(form, "quote")
+    try:
+        if not uploads:
+            raise InvalidRequest("Choose the quote to read.")
+        if form.get("confidential") == "yes":
+            kept = container.approvals.keep_quote(user.id, uploads[0])
+            return _form_page(
+                request, "requests/form.html", values=_confidential_values(kept), kept_private=True
+            )
+        if not request.app.state.ai_reads.allow(str(user.id)):
+            raise InvalidRequest("You have read a lot of documents this hour. Try again later.")
+        draft = container.approvals.read_quote(user.id, uploads[0])
+    except DomainError as error:
+        return _form_page(
+            request, "requests/form.html", values={"currency": "USD"}, error=str(error)
+        )
+    return _form_page(request, "requests/form.html", values=_values_from(draft), draft=draft)
+
+
+@router.get("/advice")
+def advice(
+    request: Request, user: CurrentUser, supplier: str = "", category_id: str = "", quote: str = ""
+):
+    try:
+        category = _optional_uuid(category_id)
+    except ValueError:
+        category = None
+    found = container_of(request).queries.advice(
+        user.id, supplier[:200], category, has_quote=quote == "yes"
+    )
+    filing = found.filing
+    return JSONResponse(
+        {
+            "category_id": str(filing.category_id) if filing else "",
+            "tag_id": str(filing.tag_id or "") if filing else "",
+            "learned_from": filing.learned_from if filing else "",
+            "lessons": found.lessons,
+        }
+    )
 
 
 @router.post("", dependencies=[Depends(verify_csrf)])
@@ -129,7 +214,8 @@ async def submit_request(request: Request, background: BackgroundTasks, user: Cu
     container = container_of(request)
     form = await request.form()
     try:
-        reference = container.approvals.submit(user.id, _details_from(form), await _uploads(form))
+        quotes = await _all_quotes(form, container.approvals)
+        reference = container.approvals.submit(user.id, _details_from(form), quotes)
     except DomainError as error:
         return _form_page(request, "requests/form.html", values=dict(form), error=str(error))
     background.add_task(container.notifications.deliver_pending)

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
 {% block title %}{{ "Change " ~ editing.request.reference if editing else "New request" }}{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -15,21 +16,69 @@
 
 {% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
 
-<form class="sheet" method="post" enctype="multipart/form-data" action="{{ '/requests/' ~ editing.request.reference ~ '/edit' if editing else '/requests' }}">
+{% if not editing and container.ai_enabled and not draft %}
+<form class="sheet ai-panel quote-reader" method="post" action="/requests/new/read-quote" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="body">
+    <div class="ai-head">
+      <span class="ai-icon">{{ icon("spark") }}</span>
+      <div>
+        <h2>Have a quote? Start with it</h2>
+        <p class="muted">AI reads it and fills in the form for you: supplier, price, currency and whether it repeats. You check it before sending.</p>
+      </div>
+    </div>
+    <label class="check private-check"><input type="checkbox" name="confidential" value="yes"><span>It's confidential<span class="hint">The quote is attached but not sent to AI, and Greenlight won't learn from this request.</span></span></label>
+    <div class="upload">
+      <label class="drop" for="quote">
+        {{ icon("invoice") }}
+        <span><strong>Choose the quote</strong><span class="muted">PDF or photo, up to 10 MB</span></span>
+        <input id="quote" name="quote" type="file" accept="application/pdf,image/*" required>
+      </label>
+      <button class="primary" type="submit" data-busy="Reading the quote…">{{ icon("spark") }}Fill it in</button>
+    </div>
+  </div>
+</form>
+<p class="or-divider"><span>or fill it in yourself</span></p>
+{% endif %}
+
+{% if kept_private %}
+<div class="notice ai" role="status">
+  {{ icon("check") }}
+  <span><strong>{{ values.kept_quote_name }} is attached and was not sent to AI.</strong>Fill in the rest yourself. Only the people approving it will see this request.</span>
+</div>
+{% endif %}
+
+{% if draft %}
+<div class="notice ai" role="status">
+  {{ icon("spark") }}
+  <span><strong>Filled in from {{ draft.kept.filename }}.</strong>
+  {% if draft.filed_like %}Category and project are set the way {{ draft.filed_like }} from the same supplier was filed.{% endif %}
+  {% if draft.reading.unclear_fields %}Fields marked "Check this" were hard to read.{% else %}Check it, add why it's needed, and send.{% endif %}</span>
+</div>
+{% endif %}
+{% set unclear = draft.reading.unclear_fields if draft else () %}
+{% macro check_this(name) %}{% if name in unclear %} <span class="check-this">Check this</span>{% endif %}{% endmacro %}
+
+<form class="sheet request-form" method="post" enctype="multipart/form-data" action="{{ '/requests/' ~ editing.request.reference ~ '/edit' if editing else '/requests' }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if values.kept_quote %}
+  <input type="hidden" name="kept_quote" value="{{ values.kept_quote }}">
+  <input type="hidden" name="kept_quote_name" value="{{ values.kept_quote_name }}">
+  <input type="hidden" name="kept_quote_type" value="{{ values.kept_quote_type }}">
+  {% endif %}
   <div class="body form-body">
 
   <div class="field">
-    <label for="title">What are you buying?</label>
+    <label for="title">What are you buying?{{ check_this("title") }}</label>
     <input id="title" name="title" maxlength="200" required value="{{ values.title }}" placeholder="Laptops for the finance team">
   </div>
   <div class="field">
-    <label for="supplier">Who from?</label>
+    <label for="supplier">Who from?{{ check_this("supplier") }}</label>
     <input id="supplier" name="supplier" maxlength="200" required value="{{ values.supplier }}" placeholder="Supplier name">
   </div>
 
   <div class="field">
-    <label for="amount">How much? <span class="hint">For a subscription or contract, the amount of each payment</span></label>
+    <label for="amount">How much?{{ check_this("amount") }}{{ check_this("currency") }} <span class="hint">For a subscription or contract, the amount of each payment</span></label>
     <div class="amount-input">
       <input id="amount" name="amount" inputmode="decimal" required value="{{ values.amount }}" placeholder="0.00">
       <select aria-label="Currency" id="currency" name="currency">
@@ -39,7 +88,7 @@
   </div>
 
   <div class="toggle-panel">
-    <label class="check"><input type="checkbox" id="recurring" name="recurring" value="yes" {% if values.recurring == "yes" %}checked{% endif %}><span>It repeats, like a subscription or retainer<span class="hint">It's approved once for the whole contract, so nobody raises it again every month.</span></span></label>
+    <label class="check"><input type="checkbox" id="recurring" name="recurring" value="yes" {% if values.recurring == "yes" %}checked{% endif %}><span>It repeats, like a subscription or retainer{{ check_this("billing_period") }}<span class="hint">It's approved once for the whole contract, so nobody raises it again every month.</span></span></label>
     <div class="field-row recurring-fields">
       <div class="field">
         <label for="billing_period">Paid</label>
@@ -75,13 +124,15 @@
     </div>
   </div>
 
+  <div class="advice" id="advice" role="status" aria-live="polite" hidden></div>
+
   <div class="field">
     <label for="justification">Why is it needed?</label>
     <textarea id="justification" name="justification" required placeholder="What it's for, and what happens if we don't buy it">{{ values.justification }}</textarea>
   </div>
 
   <div class="field">
-    <label for="quotes">Quote <span class="hint">{% if editing and editing.request.quotes %}Add the new quote if the price changed{% else %}A PDF or a photo of it{% endif %}</span></label>
+    <label for="quotes">Quote <span class="hint">{% if values.kept_quote %}{{ values.kept_quote_name }} is attached. Add another if you have one.{% elif editing and editing.request.quotes %}Add the new quote if the price changed{% else %}A PDF or a photo of it{% endif %}</span></label>
     <input id="quotes" name="quotes" type="file" multiple accept="application/pdf,image/*">
   </div>
   <div class="field">
@@ -89,7 +140,7 @@
     <input id="no_quote_reason" name="no_quote_reason" maxlength="300" value="{{ values.no_quote_reason }}">
   </div>
 
-  <label class="check field"><input type="checkbox" name="confidential" value="yes" {% if values.confidential == "yes" %}checked{% endif %}><span>Keep it confidential<span class="hint">Department heads who aren't approving it won't see it.</span></span></label>
+  <label class="check field"><input type="checkbox" name="confidential" value="yes" {% if values.confidential == "yes" %}checked{% endif %}><span>Keep it confidential<span class="hint">Department heads who aren't approving it won't see it, and Greenlight won't learn from it.</span></span></label>
 
   {% if editing %}
   <div class="field">

@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     cron_token: SecretStr = SecretStr("")
     reminder_after_hours: int = 24
     max_upload_mb: int = 10
-    invoice_reads_per_hour: int = 30
+    ai_reads_per_hour: int = 30
 
     @model_validator(mode="after")
     def _refuse_unsafe_settings(self) -> "Settings":

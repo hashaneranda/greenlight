@@ -1,19 +1,29 @@
 import hashlib
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID
 
 from greenlight.application import event_handlers
 from greenlight.application.directory import PeopleDirectory
 from greenlight.application.errors import NotFound
 from greenlight.application.loading import active_person, request_by_reference, usd_rate
-from greenlight.application.ports import Clock, FileStorage, InvoiceReader, UnitOfWork
+from greenlight.application.ports import (
+    Clock,
+    FileStorage,
+    InvoiceReader,
+    QuoteReader,
+    UnitOfWork,
+)
 from greenlight.domain.catalog import Tag
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import InvalidRequest, NotPermitted
 from greenlight.domain.invoice_matching import InvoiceCheck, check_invoice
+from greenlight.domain.learning import learned_filing
 from greenlight.domain.money import Money
+from greenlight.domain.quote_reading import QuoteReading
 from greenlight.domain.spend_request import Quote, RequestStatus, SpendDetails, SpendRequest
 
 ALLOWED_UPLOAD_TYPES = {"application/pdf", "image/png", "image/jpeg", "image/webp", "image/heic"}
@@ -26,6 +36,24 @@ class Upload:
     content: bytes
 
 
+@dataclass(frozen=True)
+class KeptQuote:
+    """A quote already stored while it was read, so the requester doesn't upload it twice."""
+
+    sha256: str
+    filename: str
+    content_type: str
+
+
+@dataclass(frozen=True)
+class QuoteDraft:
+    reading: QuoteReading
+    kept: KeptQuote
+    category_id: UUID | None
+    tag_id: UUID | None
+    filed_like: str = ""
+
+
 class SpendApprovals:
     def __init__(
         self,
@@ -34,11 +62,13 @@ class SpendApprovals:
         clock: Clock,
         invoice_reader: InvoiceReader | None = None,
         max_upload_bytes: int = 10 * 1024 * 1024,
+        quote_reader: QuoteReader | None = None,
     ):
         self._unit_of_work = unit_of_work
         self._storage = storage
         self._clock = clock
         self._invoice_reader = invoice_reader
+        self._quote_reader = quote_reader
         self._max_upload_bytes = max_upload_bytes
 
     def submit(self, requester_id: UUID, details: SpendDetails, uploads: list[Upload]) -> str:
@@ -166,6 +196,47 @@ class SpendApprovals:
             uow.commit()
             return check
 
+    def read_quote(self, actor_id: UUID, upload: Upload) -> QuoteDraft:
+        if self._quote_reader is None:
+            raise InvalidRequest("Quote reading is not switched on.")
+        self._check_upload(upload)
+        with self._unit_of_work() as uow:
+            active_person(uow, actor_id)
+            categories = [c for c in uow.catalog.categories() if c.is_active]
+
+        reading = self._quote_reader.read(
+            upload.content, upload.content_type, [c.name for c in categories]
+        )
+        [quote] = self._store_quotes([upload], actor_id, self._clock.now())
+
+        with self._unit_of_work() as uow:
+            shared = [r for r in uow.requests.all() if not r.is_confidential]
+            filing = learned_filing(reading.supplier, shared)
+            open_tags = {t.id for t in uow.catalog.tags() if t.is_active}
+
+        kept = _kept(quote)
+        if filing:
+            tag_id = filing.tag_id if filing.tag_id in open_tags else None
+            return QuoteDraft(reading, kept, filing.category_id, tag_id, filing.learned_from)
+        guessed = next((c.id for c in categories if c.name == reading.category_name), None)
+        return QuoteDraft(reading, kept, guessed, None)
+
+    def keep_quote(self, actor_id: UUID, upload: Upload) -> KeptQuote:
+        """Store a confidential quote for the request without sending it to an AI model."""
+        with self._unit_of_work() as uow:
+            active_person(uow, actor_id)
+        [quote] = self._store_quotes([upload], actor_id, self._clock.now())
+        return _kept(quote)
+
+    def kept_upload(self, kept: KeptQuote) -> Upload:
+        if not re.fullmatch(r"[0-9a-f]{64}", kept.sha256):
+            raise InvalidRequest("Attach the quote again.")
+        try:
+            content = self._storage.load(f"quotes/{kept.sha256}")
+        except FileNotFoundError as error:
+            raise InvalidRequest("Attach the quote again.") from error
+        return Upload(kept.filename, kept.content_type, content)
+
     def arrange_cover(
         self,
         actor_id: UUID,
@@ -220,6 +291,32 @@ class SpendApprovals:
                 raise NotFound("That cover no longer exists.")
             cover.cancel(active_person(uow, actor_id), now)
             event_handlers.audit(uow, "cover_cancelled", now, actor_id=actor_id, cover=cover.id)
+            uow.commit()
+
+    def change_coo_limit(
+        self, actor_id: UUID, category_id: UUID, amount_usd: Decimal, *, suggested: bool
+    ) -> None:
+        now = self._clock.now()
+        with self._unit_of_work() as uow:
+            if not active_person(uow, actor_id).can_change_rules:
+                raise NotPermitted("Only the COO or an admin can change approval rules.")
+            category = uow.catalog.category(category_id)
+            if category is None:
+                raise NotFound("That category no longer exists.")
+            if amount_usd <= 0:
+                raise InvalidRequest("The limit must be more than zero.")
+            policy = uow.catalog.approval_policy()
+            uow.catalog.set_executive_threshold(category_id, amount_usd)
+            event_handlers.audit(
+                uow,
+                "approval_rule_changed",
+                now,
+                actor_id=actor_id,
+                category=category.name,
+                coo_limit_from=str(policy.executive_threshold_for(category)),
+                coo_limit_to=str(amount_usd),
+                suggested_by_greenlight=suggested,
+            )
             uow.commit()
 
     def open_trip(
@@ -280,6 +377,10 @@ class SpendApprovals:
                 )
             )
         return quotes
+
+
+def _kept(quote: Quote) -> KeptQuote:
+    return KeptQuote(quote.sha256, quote.filename, quote.content_type)
 
 
 def _start_route(uow: UnitOfWork, request: SpendRequest, now: datetime) -> None:
