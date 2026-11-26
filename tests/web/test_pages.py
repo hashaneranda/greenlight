@@ -180,3 +180,29 @@ def test_the_coo_reviews_waiting_requests_one_by_one(client):
 
     assert response.headers["location"] == "/review"
     assert "All clear" in client.get("/review").text
+
+
+def test_a_sent_back_request_can_be_fixed_and_sent_again(client):
+    sign_in_as(client, "Sofia Lindqvist")
+    home = client.get("/").text
+    assert "came back to you" in home
+    reference = re.search(r'class="sheet came-back" href="/requests/(GL-\d+)"', home).group(1)
+    form = client.get(f"/requests/{reference}/edit").text
+    assert "Fix and send again" in form
+    category = re.search(r'<option value="([0-9a-f-]+)" selected', form).group(1)
+
+    client.post(
+        f"/requests/{reference}/edit",
+        data={
+            "csrf": csrf_from(form),
+            "title": "Leadership course",
+            "supplier": "Insight Academy",
+            "amount": "6500",
+            "currency": "USD",
+            "category_id": category,
+            "justification": "Two managers, in-house programme is full.",
+            "change_reason": "Explained why the in-house programme won't work",
+        },
+    )
+
+    assert "Waiting for" in client.get(f"/requests/{reference}").text

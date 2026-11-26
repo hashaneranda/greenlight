@@ -261,8 +261,12 @@ class SpendRequest:
         )
 
     @property
+    def sent_back_step(self) -> ApprovalStep | None:
+        return next((s for s in self.current_steps if s.status == StepStatus.REJECTED), None)
+
+    @property
     def sent_back_reason(self) -> str:
-        return next((s.comment for s in self.current_steps if s.status == StepStatus.REJECTED), "")
+        return self.sent_back_step.comment if self.sent_back_step else ""
 
     @property
     def pending_step(self) -> ApprovalStep | None:

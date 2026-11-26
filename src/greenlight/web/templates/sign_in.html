@@ -13,13 +13,30 @@
   </div>
 </section>
 
-<h2 class="section-title">Try it as someone at Orvane</h2>
+<h2 class="section-title">Try it in three steps</h2>
 <p class="muted pick-hint">This is a demo, so you can be anyone. In production people sign in with their Microsoft work account.</p>
-<form method="post" action="/sign-in/demo" class="sheet">
+<form method="post" action="/sign-in/demo">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   {% if needs_passcode %}
   <div class="field passcode"><label for="passcode">Demo passcode</label><input id="passcode" name="passcode" type="password" autocomplete="current-password" required></div>
   {% endif %}
+  <ol class="story">
+    {% for name, step, what in [
+      ("Grace Mutombo", "Ask before you spend", "Raise a request from a quote, and fix one that came back."),
+      ("Nadia Frost", "Approve in a tap", "Swipe through what's waiting, with hints from past decisions."),
+      ("Tom Becker", "Pay what was approved", "Let AI read an invoice and match it to its approval."),
+    ] %}
+    {% set person = people|selectattr("name", "equalto", name)|first %}
+    {% if person %}
+    <li><button class="story-step" name="employee_id" value="{{ person.id }}">
+      <span class="n">{{ loop.index }}</span>
+      <span class="what"><strong>{{ step }}</strong><span>{{ what }}</span><span class="as">As {{ person.first_name }}, {{ person.job_title|lower }}</span></span>
+    </button></li>
+    {% endif %}
+    {% endfor %}
+  </ol>
+  <details class="sheet everyone">
+  <summary>Or pick anyone at Orvane</summary>
   <ul class="people">
   {% for person in people %}
   {% set manager = lookups.person(person.manager_id) %}
@@ -40,5 +57,6 @@
   </li>
   {% endfor %}
   </ul>
+  </details>
 </form>
 {% endblock %}
