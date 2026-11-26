@@ -160,6 +160,19 @@ class InMemoryOutbox:
     def add(self, notification):
         self.sent.append(notification)
 
+    def for_recipient(self, recipient_id, limit=50):
+        return self._sent_to(recipient_id)[:limit]
+
+    def unread_count(self, recipient_id):
+        return sum(1 for n in self._sent_to(recipient_id) if n.read_at is None)
+
+    def mark_all_read(self, recipient_id, now):
+        for notification in self._sent_to(recipient_id):
+            notification.read_at = notification.read_at or now
+
+    def _sent_to(self, recipient_id):
+        return [n for n in reversed(self.sent) if n.recipient_id == recipient_id]
+
 
 class FakeUnitOfWork:
     def __init__(self, people, catalog):

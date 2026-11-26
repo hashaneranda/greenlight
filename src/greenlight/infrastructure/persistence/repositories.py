@@ -247,3 +247,30 @@ class SqlOutbox:
 
     def add(self, notification: OutgoingNotification) -> None:
         self._session.add(notification)
+
+    def for_recipient(self, recipient_id: UUID, limit: int = 50) -> list[OutgoingNotification]:
+        columns = tables.notifications.c
+        return list(
+            self._session.scalars(
+                select(OutgoingNotification)
+                .where(columns.recipient_id == recipient_id)
+                .order_by(columns.created_at.desc(), columns.id.desc())
+                .limit(limit)
+            )
+        )
+
+    def unread_count(self, recipient_id: UUID) -> int:
+        columns = tables.notifications.c
+        return self._session.scalar(
+            select(func.count())
+            .select_from(tables.notifications)
+            .where(columns.recipient_id == recipient_id, columns.read_at.is_(None))
+        )
+
+    def mark_all_read(self, recipient_id: UUID, now: datetime) -> None:
+        columns = tables.notifications.c
+        self._session.execute(
+            update(tables.notifications)
+            .where(columns.recipient_id == recipient_id, columns.read_at.is_(None))
+            .values(read_at=now)
+        )

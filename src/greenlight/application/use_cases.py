@@ -346,6 +346,11 @@ class SpendApprovals:
             uow.commit()
             return reminded
 
+    def mark_inbox_read(self, reader_id: UUID) -> None:
+        with self._unit_of_work() as uow:
+            uow.outbox.mark_all_read(reader_id, self._clock.now())
+            uow.commit()
+
     def quote_content(self, quote: Quote) -> bytes:
         return self._storage.load(quote.storage_key)
 

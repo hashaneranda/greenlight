@@ -9,8 +9,10 @@ from greenlight.application.administration import Administration
 from greenlight.application.ports import RateRow
 from greenlight.application.queries import SpendQueries
 from greenlight.application.use_cases import SpendApprovals, Upload
+from greenlight.config import Settings
 from greenlight.domain.people import Department, Role
 from greenlight.domain.spend_request import RequestStatus
+from greenlight.infrastructure.notifications.delivery import NotificationSender
 from greenlight.infrastructure.persistence import tables
 from greenlight.infrastructure.persistence.unit_of_work import SqlUnitOfWork, make_engine
 from greenlight.infrastructure.storage.database import DatabaseFileStorage
@@ -167,3 +169,34 @@ def test_a_new_category_is_offered_on_the_request_form(company, admin, services)
 
     categories, _, _ = queries.form_options()
     assert "Training" in [category.name for category in categories]
+
+
+def test_a_notice_with_nowhere_to_send_it_is_kept_as_logged(company, services, database_url):
+    approvals, queries, factory, _ = services
+    approvals.submit(company.priya.id, details(company.general), [PDF])
+
+    nowhere = Settings(database_url=database_url, smtp_host="", teams_webhook_url="")
+    sender = NotificationSender(nowhere, factory)
+
+    assert sender.deliver_pending() == 1
+    [item] = queries.inbox(company.nadia.id)
+    assert item.channel == "logged"
+    assert item.delivery_error == ""
+
+
+def test_the_inbox_lists_the_newest_notice_first(company, services):
+    approvals, _, factory, clock = services
+    approvals.submit(company.priya.id, details(company.general), [PDF])
+    clock.moment = NOW + timedelta(hours=1)
+    approvals.submit(company.priya.id, details(company.general), [PDF])
+
+    with SqlUnitOfWork(factory) as uow:
+        notices = uow.outbox.for_recipient(company.nadia.id)
+        assert [n.created_at for n in notices] == [clock.moment, NOW]
+        assert uow.outbox.unread_count(company.nadia.id) == 2
+
+        uow.outbox.mark_all_read(company.nadia.id, clock.moment)
+        uow.commit()
+
+    with SqlUnitOfWork(factory) as uow:
+        assert uow.outbox.unread_count(company.nadia.id) == 0

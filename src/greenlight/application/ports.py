@@ -122,10 +122,22 @@ class OutgoingNotification:
     body: str
     request_id: UUID | None
     created_at: datetime
+    id: int | None = None
+    delivered_at: datetime | None = None
+    delivery_error: str = ""
+    attempts: int = 0
+    channel: str = ""
+    read_at: datetime | None = None
 
 
 class Outbox(Protocol):
     def add(self, notification: OutgoingNotification) -> None: ...
+
+    def for_recipient(self, recipient_id: UUID, limit: int = 50) -> list[OutgoingNotification]: ...
+
+    def unread_count(self, recipient_id: UUID) -> int: ...
+
+    def mark_all_read(self, recipient_id: UUID, now: datetime) -> None: ...
 
 
 class UnitOfWork(Protocol):
