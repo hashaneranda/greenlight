@@ -14,12 +14,13 @@ router = APIRouter()
 
 @router.get("/payments")
 def ledger(request: Request, user: CurrentUser):
-    queries = container_of(request).queries
+    approved = container_of(request).queries.payments_ledger(user.id)
     return render(
         request,
         "payments/ledger.html",
-        approved=queries.payments_ledger(user.id),
-        lookups=queries.lookups(),
+        to_pay=[r for r in approved if r.outstanding_usd],
+        paid_in_full=[r for r in approved if not r.outstanding_usd],
+        today=local_today(),
     )
 
 
