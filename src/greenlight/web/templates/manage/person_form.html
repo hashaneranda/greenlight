@@ -28,7 +28,7 @@
   <h2 class="section-title">Who they are</h2>
   <div class="field"><label for="name">Name</label><input id="name" name="name" maxlength="200" required value="{{ values.name }}" autocomplete="off"></div>
   <div class="field"><label for="email">Work email <span class="hint">They sign in with this.</span></label><input id="email" name="email" type="email" maxlength="320" required value="{{ values.email }}" autocomplete="off" spellcheck="false"></div>
-  <div class="field"><label for="job_title">Job title <span class="hint">Optional</span></label><input id="job_title" name="job_title" maxlength="200" value="{{ values.job_title }}"></div>
+  <div class="field"><label for="job_title">Job title <span class="hint">Optional</span></label><input id="job_title" name="job_title" maxlength="200" autocomplete="off" value="{{ values.job_title }}"></div>
 
   <h2 class="section-title">Where they sit</h2>
   {{ choose("manager_id", "Reports to", managers, "Nobody, they're at the top") }}

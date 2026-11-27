@@ -110,11 +110,11 @@
 
   <div class="field">
     <label for="title">What are you buying?{{ check_this("title") }}</label>
-    <input id="title" name="title" maxlength="200" required value="{{ values.title }}" placeholder="Laptops for the finance team"{{ unclear_if("title") }}>
+    <input id="title" name="title" maxlength="200" autocomplete="off" required value="{{ values.title }}" placeholder="Laptops for the finance team"{{ unclear_if("title") }}>
   </div>
   <div class="field">
     <label for="supplier">Who from?{{ check_this("supplier") }}</label>
-    <input id="supplier" name="supplier" maxlength="200" required value="{{ values.supplier }}" placeholder="Supplier name"{{ unclear_if("supplier") }}>
+    <input id="supplier" name="supplier" maxlength="200" autocomplete="off" required value="{{ values.supplier }}" placeholder="Supplier name"{{ unclear_if("supplier") }}>
   </div>
 
   <div class="field">
@@ -173,7 +173,7 @@
     </div>
   </div>
 
-  <div class="advice" id="advice" role="status" aria-live="polite" hidden></div>
+  <div class="advice" id="advice" role="status"></div>
 
   <div class="field">
     <label for="justification">Why is it needed?</label>
