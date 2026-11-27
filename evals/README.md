@@ -4,6 +4,8 @@ Greenlight lets a language model read supplier quotes, to fill in a spend reques
 
 Each case is a document and what the reader should return for it. Quote cases check `supplier`, `currency`, `amount`, `billing_period` and `term_months`. Invoice cases check `supplier`, `invoice_number`, `currency`, `total`, `invoice_date` and `purchase_reference`. A case can instead expect the reader to refuse the document.
 
+Some documents are hard to read on purpose. Their expected values are still what is printed, and `expect_unclear` lists the fields an honest reader should flag as unsure, so a person is told to check them. Flagging one of those fields counts in the reader's favour even when its value is wrong; a confident wrong value does not.
+
 ## Cases
 
 | Case | What it tests |
@@ -24,23 +26,36 @@ Each case is a document and what the reader should return for it. Quote cases ch
 | `i06-balance-due` | An invoice with an amount already paid and a balance due; the total is the full invoice total. |
 | `i07-tzs` | A tyre invoice in Tanzanian shillings with commas for thousands and 18% VAT. |
 
+The hard-to-read cases, and the fields each one should flag:
+
+| Case | What it tests | Should flag |
+| --- | --- | --- |
+| `q09-blurred-photo` | A catering quote photographed in poor light and out of focus, so the supplier's name, the currency and the total are hard to make out. | `supplier`, `currency`, `amount` |
+| `q10-no-term` | A monthly maintenance retainer that never says how many months it runs for, so the term must be left for a person rather than guessed. | `term_months` |
+| `q11-stamped-total` | A scanned quote where the supplier's company stamp is pressed across the grand total, so the figure can only be worked out from the lines above it. | `amount` |
+| `i08-angled-glare` | An invoice photographed at an angle under a ceiling light, with glare washing out the invoice number and date. | `invoice_number`, `invoice_date` |
+
 The suppliers, addresses, bank details and figures are all made up.
+
+One label was changed after seeing a result. In `q09-blurred-photo`, `currency` was added to the fields an honest reader should flag after the first prompt change was run, because on a second look the currency is only printed beside the amounts, which can't be read. It changes no headline number: the reader left the currency empty, so it counts as a field to flag because it was read wrong, and the kept prompt's flag recall is 5 of 7 with or without the label.
 
 ## Running it
 
 ```sh
 greenlight eval --provider groq           # read every document and score the answers
 greenlight eval --provider groq --record  # also save the model's answers for replay
-greenlight eval --replay evals/recorded/groq-2026-11-26.json  # score a saved run again, no key needed
+greenlight eval --replay evals/recorded/groq-2026-11-27.json  # score a saved run again, no key needed
 ```
 
 Each run rewrites `docs/ai-evaluation.md`. Prices for the cost line come from `pricing.json`; fill them in from the provider's pricing page on the day of the run.
+
+When you change a prompt, a schema or the model, record a run before and after, and add the recording to `changes.json` with one sentence on what changed. The report's Changes section scores every listed recording again, so its numbers come from the runs themselves.
 
 ## Adding a case
 
 Cases live in `CASES` in `make_documents.py`. Each one holds the figures printed on the document and the layout it is drawn with, and `cases.json` is written from the same figures, so the document and the expected answer always agree.
 
-1. Add a `Case` to `CASES` with an id (`q` for quotes, `i` for invoices, then the next number), one sentence on what it tests, the `Paper` (or `Letter`) and a layout: `classic`, `banded` or `ruled`. Set `scanned=True` to save it as a tilted PNG scan.
+1. Add a `Case` to `CASES` with an id (`q` for quotes, `i` for invoices, then the next number), one sentence on what it tests, the `Paper` (or `Letter`) and a layout: `classic`, `banded` or `ruled`. Set `captured` to save it as a picture instead of a PDF: `as_scan` for a tilted scan, `as_phone_photo` for a blurred photo, `as_angled_photo` for a photo at an angle with glare. If the document makes a field hard to read, list it in `expect_unclear`.
 2. Regenerate the documents and open the new one to check it reads like real supplier paperwork.
 
 ## Regenerating

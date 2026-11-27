@@ -1,37 +1,57 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import request_rows, breakdown_rows %}
+{% from "partials/macros.html" import request_rows, breakdown_rows, payment_rows, signal, status_text %}
 {% from "partials/icons.html" import icon %}
 {% block title %}Home{% endblock %}
 {% block content %}
 {% set sent_back = mine|selectattr("status", "equalto", "rejected")|list %}
+{% set has_picture = show_picture and (board.approved_usd or board.pending_usd) %}
 <div class="page-head">
   <div>
     {% if waiting %}
     <h1>{{ user.first_name }}, {{ waiting|length }} {{ "needs" if waiting|length == 1 else "need" }} your OK</h1>
-    <p>Each one shows the quote and what Greenlight has seen before.</p>
+    <p>Start with the first. Each one shows the quote and what Greenlight has seen before.</p>
     {% elif sent_back %}
     <h1>{{ user.first_name }}, {{ sent_back|length }} came back to you</h1>
     <p>Read why, change it and send it again.</p>
+    {% elif to_pay %}
+    <h1>{{ to_pay|sum(attribute="outstanding_usd")|usd }} to pay</h1>
+    <p>{{ to_pay|length }} approved request{{ "s" if to_pay|length != 1 }} not paid in full yet. Check each invoice against its approval before you pay.</p>
+    {% elif mine %}
+    <h1>Your requests</h1>
+    <p>Each light is one approval: green is done, amber is deciding now.</p>
+    {% elif user.sees_all_spend %}
+    <h1>All clear, {{ user.first_name }}</h1>
+    <p>Nothing needs your OK. Here is what is moving across Orvane.</p>
     {% else %}
     <h1>Hi {{ user.first_name }}</h1>
     <p>Need to buy something? Ask here first. It goes straight to the people who need to say yes, and you can follow it until it's paid.</p>
     {% endif %}
   </div>
-  <div class="actions"><a class="button primary" href="/requests/new">{{ icon("plus") }}New request</a></div>
 </div>
 
 <div class="home-layout">
   <div>
     {% if waiting %}
-    <a class="review-cta" href="/review">
-      <span class="stack" aria-hidden="true">{% for item in waiting[:3] %}<span></span>{% endfor %}</span>
-      <span><strong>Start reviewing</strong><span>One at a time. Approve or send back in a tap.</span></span>
-      {{ icon("check") }}
-    </a>
+    {% set first = waiting[0] %}
+    {% set asker = lookups.person(first.requester_id) %}
+    <article class="card first-up" aria-labelledby="first-up-title">
+      <p class="asker"><span class="avatar">{{ asker.initials }}</span><span><strong>{{ asker.name }}</strong><span class="muted">{{ asker.job_title }}, {{ first.submitted_at|when }}</span></span></p>
+      <div class="figure small-figure">
+        {% if first.currency != "USD" %}<span class="ccy">{{ first.currency }}</span>{% endif %}
+        <span class="value">{% if first.currency == "USD" %}{{ first.total_usd|usd }}{% else %}{{ "{:,.0f}".format(first.total.amount) }}{% endif %}</span>
+        {% if first.currency != "USD" %}<span class="aside">About {{ first.total_usd|usd }}</span>{% endif %}
+      </div>
+      <h2 id="first-up-title">{{ first.title }}</h2>
+      <p class="muted">From {{ first.supplier }}</p>
+      <p class="state">{{ signal(first, user) }}{{ status_text(first) }}</p>
+      <a class="button primary block" href="/review">Review and decide</a>
+    </article>
+    {% if waiting|length > 1 %}
     <section class="sheet" aria-labelledby="waiting-heading">
-      <div class="sheet-head"><h2 id="waiting-heading">Waiting for you</h2></div>
-      {{ request_rows(waiting, lookups, viewer=user) }}
+      <div class="sheet-head"><h2 id="waiting-heading">Next up</h2></div>
+      {{ request_rows(waiting[1:], lookups, viewer=user) }}
     </section>
+    {% endif %}
     {% endif %}
 
     {% for r in sent_back[:3] %}
@@ -41,10 +61,27 @@
     </a>
     {% endfor %}
 
-    {% if mine or not user.sees_all_spend %}
+    {% if to_pay %}
+    <section class="sheet" aria-labelledby="to-pay-heading">
+      <div class="sheet-head"><h2 id="to-pay-heading">To pay</h2><a class="small" href="/payments">All payments</a></div>
+      {{ payment_rows(to_pay[:5]) }}
+    </section>
+    {% endif %}
+
+    {% if mine %}
     <section class="sheet" aria-labelledby="mine-heading">
-      <div class="sheet-head"><h2 id="mine-heading">Your requests</h2>{% if mine %}<a class="small" href="/requests">See all</a>{% endif %}</div>
-      {{ request_rows(mine, lookups, viewer=user, show_requester=False, empty_title="Nothing raised yet", empty="Need to buy something? Raise it here first and track it until it's paid.") }}
+      <div class="sheet-head"><h2 id="mine-heading">{{ "Latest" if not (waiting or sent_back or to_pay) else "Your requests" }}</h2><a class="small" href="/requests">See all</a></div>
+      {{ request_rows(mine, lookups, viewer=user, show_requester=False) }}
+    </section>
+    {% elif user.sees_all_spend and not (waiting or to_pay) %}
+    <section class="sheet" aria-labelledby="recent-heading">
+      <div class="sheet-head"><h2 id="recent-heading">Latest across Orvane</h2><a class="small" href="/requests">See all</a></div>
+      {{ request_rows(board.recent[:6], lookups, viewer=user) }}
+    </section>
+    {% elif not user.sees_all_spend %}
+    <section class="sheet" aria-labelledby="mine-heading">
+      <div class="sheet-head"><h2 id="mine-heading">Your requests</h2></div>
+      {{ request_rows([], lookups, empty_title="Nothing raised yet", empty="Need to buy something? Raise it here first and track it until it's paid.") }}
     </section>
     {% endif %}
   </div>
@@ -64,24 +101,23 @@
     </a>
     {% endif %}
 
-    {% if show_picture and (board.approved_usd or board.pending_usd) %}
+    {% if has_picture %}
     <section class="sheet picture" aria-labelledby="picture-heading">
       <div class="sheet-head"><h2 id="picture-heading">{{ "The whole picture" if user.sees_all_spend else "Spend you can see" }}</h2><a class="small" href="/insights">Where the money goes</a></div>
       <div class="body">
         <div class="mini-totals">
-          <div><span>Waiting for approval</span><strong>{{ board.pending_usd|usd }}</strong></div>
           <div><span>Approved</span><strong>{{ board.approved_usd|usd }}</strong></div>
-          <div><span>Approved, not paid yet</span><strong>{{ board.outstanding_usd|usd }}</strong></div>
+          <div><span>Still to pay</span><strong>{{ board.outstanding_usd|usd }}</strong></div>
+          <div><span>Waiting for approval</span><strong>{{ board.pending_usd|usd }}</strong></div>
         </div>
       </div>
       {% if board.by_project %}{{ breakdown_rows(board.by_project[:3], show_budget=True) }}{% endif %}
     </section>
     {% endif %}
 
-
-    {% if not mine and not user.sees_all_spend %}
-    <section class="how" aria-labelledby="how-heading">
-      <h2 id="how-heading" class="visually-hidden">How a request moves</h2>
+    {% if not user.sees_all_spend and not has_picture %}
+    <section class="sheet how" aria-labelledby="how-heading">
+      <div class="sheet-head"><h2 id="how-heading">How a request moves</h2></div>
       <ol class="how-steps">
         <li><span class="light"></span><span><strong>You ask</strong> with the quote, before spending</span></li>
         <li><span class="light pending"></span><span><strong>They approve</strong> your manager, then IT or the COO when needed</span></li>

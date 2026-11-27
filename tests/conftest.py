@@ -21,6 +21,8 @@ def database_url(tmp_path):
 
 
 @pytest.fixture(autouse=True)
-def ignore_local_env_file(monkeypatch):
-    """A developer's .env must not change what the tests see."""
+def ignore_local_settings(monkeypatch):
+    """A developer's .env or shell must not change what the tests see."""
     monkeypatch.setitem(Settings.model_config, "env_file", None)
+    for name in Settings.model_fields:
+        monkeypatch.delenv(name.upper(), raising=False)

@@ -11,7 +11,7 @@ from openai import OpenAI
 from greenlight.config import get_settings
 from greenlight.evaluation.cases import Case, load_cases
 from greenlight.evaluation.recording import Recording
-from greenlight.evaluation.report import load_price, render, summary
+from greenlight.evaluation.report import load_changes, load_price, render, summary
 from greenlight.evaluation.runner import Run, replay, run
 from greenlight.infrastructure.ai.document_readers import ModelUnavailable
 from greenlight.infrastructure.ai.groq_model import GROQ_URL, GroqModel
@@ -43,6 +43,8 @@ def seed() -> None:
         raise SystemExit("Refusing to load demo data into production.")
     container = build_container(settings)
     if seed_demo(container.session_factory, container.approvals):
+        while container.notifications.deliver_pending():
+            pass
         log.info("Loaded the Orvane demo organisation.")
     else:
         log.info("People already exist, demo data not loaded.")
@@ -56,7 +58,8 @@ def evaluate(record: bool, replay_from: Path | None) -> None:
     if record:
         outcome.recording().save(evals / "recorded" / f"{outcome.label}.json")
     price = load_price(evals / "pricing.json", outcome.model_name)
-    (root / "docs" / "ai-evaluation.md").write_text(render(outcome, price))
+    changes = load_changes(evals, cases)
+    (root / "docs" / "ai-evaluation.md").write_text(render(outcome, price, changes))
     print(summary(outcome))
 
 

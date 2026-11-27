@@ -1,9 +1,12 @@
 import re
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from httpx import Response
+from sqlalchemy import update
 
 from greenlight.config import Settings
+from greenlight.infrastructure.persistence import tables
 from greenlight.infrastructure.seed import seed_demo
 from greenlight.web.app import create_app
 from greenlight.web.container import build_container
@@ -62,6 +65,28 @@ def test_staff_cannot_open_the_payments_ledger_or_audit_log(client):
 
     assert client.get("/payments").status_code == 403
     assert client.get("/audit").status_code == 403
+
+
+def test_the_audit_log_says_the_chain_is_verified(client):
+    sign_in_as(client, "Tom Becker")
+
+    assert "Chain verified" in client.get("/audit").text
+
+
+def test_the_audit_log_names_the_first_entry_changed_after_it_was_sealed(client):
+    with client.app.state.container.session_factory.begin() as session:
+        session.execute(
+            update(tables.audit_entries)
+            .where(tables.audit_entries.c.sequence == 3)
+            .values(details={"reason": "Written in later"})
+        )
+    sign_in_as(client, "Tom Becker")
+
+    page = client.get("/audit").text
+
+    assert "Chain broken" in page
+    assert "The first entry that doesn't match is" in page
+    assert "No. 3:" in page
 
 
 def raise_water_dispenser(client: TestClient) -> Response:
@@ -146,6 +171,8 @@ def test_the_coo_sees_and_can_change_approval_rules(client):
     )
 
     assert "$7,500" in client.get("/rules").text
+    sign_in_as(client, "Tom Becker")
+    assert "Changed an approval rule" in client.get("/audit").text
 
 
 def test_staff_cannot_see_approval_rules(client):
@@ -230,3 +257,53 @@ def test_the_approver_is_told_until_they_open_their_inbox(client):
     assert [subject.split(" (")[0] for subject in new] == ["Approval needed: Water dispenser"]
     assert "Shown here only, as email isn&#39;t set up on this server" in inbox
     assert unread_counts(client.get("/").text) == []
+
+
+def test_the_request_form_warns_when_a_currency_rate_is_out_of_date(client):
+    container = client.app.state.container
+    with container.session_factory.begin() as session:
+        session.execute(
+            update(tables.exchange_rates)
+            .where(tables.exchange_rates.c.currency == "CDF")
+            .values(updated_at=datetime.now(UTC) - timedelta(days=40))
+        )
+    sign_in_as(client, "Grace Mutombo")
+
+    form = client.get("/requests/new").text
+
+    assert 'data-currency="CDF"' in form
+    assert "The CDF rate was last set on" in form
+    assert 'data-currency="AED"' not in form
+
+
+def test_a_request_without_a_quote_says_why(client):
+    sign_in_as(client, "Grace Mutombo")
+    form = client.get("/requests/new").text
+    category_id = re.search(r'<option value="([0-9a-f-]+)"\s*>Travel', form).group(1)
+
+    response = client.post(
+        "/requests",
+        data={
+            "csrf": csrf_from(form),
+            "title": "Visa for the Lubumbashi visit",
+            "supplier": "DRC immigration",
+            "justification": "Needed to enter the country.",
+            "category_id": category_id,
+            "amount": "150",
+            "currency": "USD",
+            "no_quote_reason": "A government fee, there is no quote",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Visa for the Lubumbashi visit" in response.text
+
+
+def test_an_address_that_does_not_exist_gets_the_greenlight_error_page(client):
+    sign_in_as(client, "Nadia Frost")
+
+    response = client.get("/nowhere")
+
+    assert response.status_code == 404
+    assert "no page here" in response.text
+    assert "Back to home" in response.text

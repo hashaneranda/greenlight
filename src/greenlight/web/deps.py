@@ -42,9 +42,10 @@ def flash(request: Request, message: str, kind: str = "ok") -> None:
     request.session["flash"] = {"message": message, "kind": kind}
 
 
-def _usd(value: Decimal | None) -> str:
+def _usd(value: Decimal | str | None) -> str:
     if value is None:
         return "–"
+    value = Decimal(value)
     if value == 0:
         return "$0"
     whole = value == value.to_integral_value() or abs(value) >= 1000

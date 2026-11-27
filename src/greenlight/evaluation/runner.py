@@ -129,6 +129,7 @@ def _run_case(case: Case, recorder: AnswerRecorder, spent: list[Usage]) -> CaseR
         case.expected,
         actual,
         unclear,
+        expected_unclear=case.expect_unclear,
         refused=refused,
         expected_refusal=case.expect_refusal,
     )

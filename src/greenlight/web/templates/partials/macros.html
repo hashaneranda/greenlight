@@ -30,44 +30,162 @@
     {% for item in requests %}
     {% set requester = lookups.person(item.requester_id) %}
     <li>
-      <a class="row" href="/requests/{{ item.reference }}">
-        <span class="title">{{ item.title }}</span>
-        <span class="amount">{{ amount(item) }}</span>
-        <span class="sub">{% if show_requester and requester %}{{ requester.name }}, {% endif %}{{ item.supplier }}</span>
-        <span class="end">{{ signal(item, viewer) }}</span>
-        <span class="sub">{{ status_text(item) }}</span>
-        <span class="sub end">{{ item.reference }}</span>
+      <a class="row request" href="/requests/{{ item.reference }}">
+        <span class="info">
+          <span class="title">{{ item.title }}</span>
+          <span class="sub">{{ item.supplier }}</span>
+          <span class="sub">{{ item.reference }}{% if show_requester and requester %}, {{ requester.name }}{% endif %}</span>
+        </span>
+        <span class="figures">
+          <span class="amount">{{ amount(item) }}</span>
+          {% if item.currency != "USD" %}<span class="usd">{{ item.total_usd|usd }}</span>{% endif %}
+          <span class="state">{{ status_text(item) }}{{ signal(item, viewer) }}</span>
+        </span>
       </a>
     </li>
     {% endfor %}
   </ul>
   {% else %}
-  <p class="empty"><strong>{{ empty_title }}</strong>{{ empty }}</p>
+  {{ empty_state(empty_title, empty) }}
   {% endif %}
+{%- endmacro %}
+
+{% macro empty_state(title, text) -%}
+  <div class="empty">
+    <span class="signal" aria-hidden="true"><span class="light"></span><span class="light"></span><span class="light"></span></span>
+    <p><strong>{{ title }}</strong>{{ text }}</p>
+    {% if caller %}{{ caller() }}{% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro spend_bar(paid, to_pay, pending, scale, budget=None) -%}
+  {% set total = paid + to_pay + pending %}
+  <span class="bar{% if budget %} budgeted{% endif %}" aria-hidden="true">
+    {% if total %}
+    <span class="fill" style="width: {{ (total / scale * 100)|round(2) }}%">
+      {% for part, value in [("paid", paid), ("to-pay", to_pay), ("pending", pending)] if value %}
+      <span class="{{ part }}" style="width: {{ (value / total * 100)|round(2) }}%"></span>
+      {% endfor %}
+    </span>
+    {% endif %}
+    {% if budget %}<span class="budget" style="left: {{ (budget / scale * 100)|round(2) }}%"></span>{% endif %}
+  </span>
+{%- endmacro %}
+
+{% macro spend_parts(paid, to_pay, pending) -%}
+  {% for value, word in [(paid, "paid"), (to_pay, "still to pay"), (pending, "waiting")] if value %}{{ value|usd }} {{ word }}{{ ", " if not loop.last }}{% endfor %}
+{%- endmacro %}
+
+{% macro payment_figures(r) -%}
+  <span class="figures">
+    <span class="amount">{{ r.outstanding_usd|usd if r.outstanding_usd else r.paid_usd|usd }}</span>
+    <span class="sub">{% if not r.outstanding_usd %}paid in full{% elif r.paid_usd %}left of {{ r.approved_total_usd|usd }}{% else %}nothing paid yet{% endif %}</span>
+  </span>
+  {% if r.paid_usd and r.outstanding_usd %}{{ spend_bar(r.paid_usd, r.outstanding_usd, 0, r.paid_usd + r.outstanding_usd) }}{% endif %}
+{%- endmacro %}
+
+{% macro payment_rows(requests, quiet=False) -%}
+  <ul class="rows{% if quiet %} quiet{% endif %}">
+    {% for r in requests %}
+    <li>
+      <a class="row" href="/requests/{{ r.reference }}">
+        <span class="info"><span class="title">{{ r.title }}</span><span class="sub">{{ r.supplier }}, {{ r.reference }}</span></span>
+        {{ payment_figures(r) }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+{%- endmacro %}
+
+{% macro to_pay_rows(requests, csrf, today) -%}
+  <ul class="rows">
+    {% for r in requests %}
+    <li class="row payable">
+      <span class="info"><a class="title" href="/requests/{{ r.reference }}">{{ r.title }}</a><span class="sub">{{ r.supplier }}, {{ r.reference }}</span></span>
+      {{ payment_figures(r) }}
+      <div class="pay-actions">
+        <details>
+          <summary>Record a payment</summary>
+          {{ payment_form(r.reference, csrf, today, key=r.reference, currency=r.currency) }}
+        </details>
+        <a href="#read">Check its invoice</a>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+{%- endmacro %}
+
+{% macro payment_form(reference, csrf, today, key, currency, invoice_number="", amount="", confirm="If this takes us over the approved amount, I've checked it and want to go ahead") -%}
+  <form method="post" action="/requests/{{ reference }}/payments" class="pay-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="field"><label for="inv-{{ key }}">Invoice number</label><input id="inv-{{ key }}" name="invoice_reference" value="{{ invoice_number }}" required></div>
+    <div class="field">
+      <label for="amt-{{ key }}">Amount paid</label>
+      <div class="amount-input"><input id="amt-{{ key }}" name="amount" value="{{ amount }}" inputmode="decimal" required placeholder="0.00"><input aria-label="Currency" name="currency" value="{{ currency }}" maxlength="3" required></div>
+    </div>
+    <div class="field"><label for="paid-{{ key }}">Paid on</label><input id="paid-{{ key }}" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
+    {% if confirm %}<label class="check field"><input type="checkbox" name="confirm_over_approval" value="yes"><span>{{ confirm }}</span></label>{% endif %}
+    <button class="primary form-foot" type="submit" data-busy="Recording…">Record payment</button>
+  </form>
 {%- endmacro %}
 
 {% macro breakdown_rows(groups, show_budget=False) -%}
   {% if groups %}
-  <ul class="rows">
+  {% set widest = groups|map(attribute="total_usd")|max %}
+  <ul class="rows breakdown">
   {% for group in groups %}
-    {% set total = group.committed_usd + group.pending_usd %}
-    {% set scale = group.budget_usd if show_budget and group.budget_usd else total %}
+    {% set budget = group.budget_usd if show_budget else None %}
     <li class="row">
       <span class="title">{{ group.label }}</span>
-      <span class="amount">{{ total|usd }}</span>
-      <span class="sub">{{ group.committed_usd|usd }} approved, {{ group.paid_usd|usd }} paid{% if group.pending_usd %}, {{ group.pending_usd|usd }} not approved yet{% endif %}</span>
-      <span class="sub end">{% if show_budget and group.budget_usd %}of {{ group.budget_usd|usd }} budget{% else %}{{ group.count }} request{{ "s" if group.count != 1 }}{% endif %}</span>
-      {% if scale %}
-      <span class="bar" aria-hidden="true">
-        <span class="paid" style="width: {{ (group.paid_usd / scale * 100)|round(1) }}%"></span>
-        <span class="committed" style="width: {{ ((group.committed_usd - group.paid_usd) / scale * 100)|round(1) }}%"></span>
-        <span class="pending" style="width: {{ (group.pending_usd / scale * 100)|round(1) }}%"></span>
+      <span class="amount">{{ group.total_usd|usd }}</span>
+      {{ spend_bar(group.paid_usd, group.to_pay_usd, group.pending_usd, [budget, group.total_usd]|max if budget else widest, budget) }}
+      <span class="sub split">
+        <span>{{ spend_parts(group.paid_usd, group.to_pay_usd, group.pending_usd) }}</span>
+        <span>{% if budget %}{{ (group.total_usd / budget * 100)|round|int }}% of {{ budget|usd }} budget{% else %}{{ group.count }} request{{ "s" if group.count != 1 }}{% endif %}</span>
       </span>
-      {% endif %}
     </li>
   {% endfor %}
   </ul>
   {% else %}
   <p class="empty">No spend yet.</p>
   {% endif %}
+{%- endmacro %}
+
+{% macro decision_bar(reference, csrf, covering_for=None, next="") -%}
+  <div class="decision" id="decision" role="group" aria-label="Your decision">
+    {% if covering_for %}<p class="covering">You're covering for {{ covering_for.name }}.</p>{% endif %}
+    <button class="danger" type="button" data-open="reject-sheet">Send back</button>
+    <form method="post" action="/requests/{{ reference }}/approve">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <button class="primary block" type="submit" data-busy="Approving…">Approve</button>
+    </form>
+  </div>
+{%- endmacro %}
+
+{% macro send_back_sheet(reference, requester, csrf, next="") -%}
+  <dialog class="sheet-dialog" id="reject-sheet" aria-labelledby="reject-heading">
+    <div class="grabber"></div>
+    <form method="post" action="/requests/{{ reference }}/reject">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+      <h2 id="reject-heading">Send it back to {{ requester.first_name }}</h2>
+      <p>Say what would get it approved. {{ requester.first_name }} sees this straight away.</p>
+      <div class="reason-starts" role="group" aria-label="Start from a common reason">
+        {% for label, reason in [
+          ("Get a second quote", "Please get a second quote."),
+          ("Lower the price", "Please bring the price down, or say why it can't be lower."),
+          ("Say why it's needed now", "Please explain why this can't wait."),
+        ] %}
+        <button type="button" data-reason="{{ reason }}">{{ label }}</button>
+        {% endfor %}
+      </div>
+      <label class="visually-hidden" for="reason">Your reason</label>
+      <textarea id="reason" name="reason" required placeholder="Or write your own reason"></textarea>
+      <div class="buttons">
+        <button type="button" class="quiet" data-close>Cancel</button>
+        <button class="danger solid" type="submit" data-busy="Sending…">Send back</button>
+      </div>
+    </form>
+  </dialog>
 {%- endmacro %}

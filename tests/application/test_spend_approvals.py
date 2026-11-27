@@ -248,6 +248,28 @@ def test_dashboard_splits_approved_paid_and_pending(company, approvals, queries)
     }
 
 
+def test_each_breakdown_splits_into_paid_still_to_pay_and_waiting(company, approvals, queries):
+    paid = approvals.submit(company.sam.id, details(company.general, "1000"), [PDF])
+    approvals.approve(company.priya.id, paid)
+    approvals.record_payment(
+        company.tom.id,
+        paid,
+        invoice_reference="INV-1",
+        amount=Money(Decimal("400"), "USD"),
+        paid_on=TODAY,
+    )
+    approvals.submit(company.sam.id, details(company.general, "300"), [PDF])
+
+    services = queries.dashboard(company.nadia.id).by_category[0]
+
+    assert (services.paid_usd, services.to_pay_usd, services.pending_usd) == (
+        Decimal("400.00"),
+        Decimal("600.00"),
+        Decimal("300.00"),
+    )
+    assert services.total_usd == Decimal("1300.00")
+
+
 def test_trip_spend_adds_up_across_travellers(company, approvals, queries):
     trip_id = approvals.open_trip(company.priya.id, "Mining Indaba 2027")
     for traveller in (company.sam, company.ana):

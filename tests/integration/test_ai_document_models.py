@@ -32,6 +32,16 @@ INVOICE_JSON = """{
 }"""
 
 
+def quote_json(
+    amount: str, currency: str = "USD", unclear: str = "", has_price: str = "true"
+) -> str:
+    return (
+        f'{{"supplier": "Likasi Hydraulics", "title": "Hoses", "currency": "{currency}", '
+        f'"has_price": {has_price}, "amount": {amount}, "billing_period": "none", '
+        f'"term_months": null, "category": "", "unclear_fields": [{unclear}]}}'
+    )
+
+
 class FakeChat:
     def __init__(self, answer: str = INVOICE_JSON, error: Exception | None = None):
         self.answer, self.error, self.calls = answer, error, []
@@ -152,6 +162,32 @@ def test_thinking_before_the_answer_is_ignored():
 )
 def test_a_failed_read_asks_the_person_to_fill_it_in_by_hand(client):
     with pytest.raises(InvalidRequest, match="fill it in by hand"):
+        AIQuoteReader(groq(client)).read(b"img", "image/png", ["Software"])
+
+
+def test_a_price_the_model_could_not_read_is_left_for_the_person_to_fill_in():
+    client = FakeChat(quote_json("null", currency="", unclear='"amount", "currency"'))
+
+    quote = AIQuoteReader(groq(client)).read(b"img", "image/png", ["Software"])
+
+    assert quote.amount is None
+    assert quote.currency == ""
+    assert quote.unclear_fields == ("amount", "currency")
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        quote_json("null"),
+        quote_json("0"),
+        quote_json("null", unclear='"amount"', has_price="false"),
+    ],
+    ids=["price left empty", "price of nothing", "no price, though flagged"],
+)
+def test_a_document_with_no_price_on_it_is_not_read_as_a_quote(answer):
+    client = FakeChat(answer)
+
+    with pytest.raises(InvalidRequest, match="No price could be found"):
         AIQuoteReader(groq(client)).read(b"img", "image/png", ["Software"])
 
 

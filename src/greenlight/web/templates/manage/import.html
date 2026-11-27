@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
+{% from "partials/macros.html" import empty_state %}
 {% block title %}Import from HR{% endblock %}
 {% macro people_section(title, people) -%}
   {% if people %}
@@ -18,36 +19,51 @@
 <div class="page-head">
   <div>
     <h1>Import from HR</h1>
-    <p>{% if preview %}Check what changes before you apply it. Nothing is saved until you do.{% else %}Paste the export from your HR system or choose the file. You see every change before anything is saved.{% endif %}</p>
+    <p>{% if preview %}Check what changes before you apply it. Nothing is saved until you do.{% else %}Choose the export from your HR system, or paste it. You see every change before anything is saved.{% endif %}</p>
   </div>
 </div>
 
 {% if not preview %}
-<form class="sheet" method="post" action="/manage/people/import" enctype="multipart/form-data">
+<form class="import-form" method="post" action="/manage/people/import" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <div class="body form-body">
+  <label class="drop" for="file" data-drop>
+    <span class="drop-mark">{{ icon("people") }}</span>
+    <span class="drop-words">
+      <strong>Choose the HR export</strong>
+      <span class="drop-file" data-file-name>A CSV file with a header row</span>
+    </span>
+    <input id="file" name="file" type="file" accept=".csv,text/csv">
+  </label>
+  <p class="small muted"><a href="/manage/people/import/template.csv" download>Download a template</a> with the header row. Active is yes or no. Leave manager_email empty for someone at the top.</p>
+  <details class="manual">
+    <summary>Or paste the CSV</summary>
     <div class="field">
-      <label for="csv_text">Paste the CSV <span class="hint">The first row is the header. Active is yes or no. Leave manager_email empty for someone at the top.</span></label>
+      <label class="visually-hidden" for="csv_text">Paste the CSV</label>
       <textarea id="csv_text" name="csv_text" class="csv" spellcheck="false" placeholder="email,name,job_title,department,site,manager_email,active"></textarea>
     </div>
-    <div class="field">
-      <label for="file">Or choose the file <span class="hint"><a href="/manage/people/import/template.csv" download>Download a template</a> with the header row</span></label>
-      <input id="file" name="file" type="file" accept=".csv,text/csv">
-    </div>
-    <button class="primary block form-foot" type="submit" data-busy="Checking…">Preview changes</button>
-  </div>
+  </details>
+  <button class="primary" type="submit" data-busy="Checking…">Preview changes</button>
 </form>
 {% else %}
+<div class="import-preview">
 {% if preview.errors %}
+<div class="verdict stop">
+  <span class="light rejected" aria-hidden="true"></span>
+  <div><strong>Fix {{ preview.errors|length }} row{{ "s" if preview.errors|length != 1 }} first</strong>Nothing is imported while any row has a problem. Fix the file and import it again.</div>
+</div>
 <section class="sheet">
-  <div class="sheet-head"><h2>Fix {{ preview.errors|length }} row{{ "s" if preview.errors|length != 1 }} first</h2></div>
-  <div class="body"><p class="muted">Nothing is imported while any row has a problem. Fix the file and import it again.</p></div>
   <ul class="rows stacked">
     {% for error in preview.errors %}
     <li class="row"><span class="title">Row {{ error.row }}</span><span class="sub">{{ error.message }}</span></li>
     {% endfor %}
   </ul>
 </section>
+{% elif change_count %}
+<div class="mini-totals import-totals">
+  <div><span>Joining</span><strong>{{ preview.adds|length }}</strong></div>
+  <div><span>Changing</span><strong>{{ preview.changes|length }}</strong></div>
+  <div><span>Leaving</span><strong>{{ preview.deactivations|length }}</strong></div>
+</div>
 {% endif %}
 
 {{ people_section("Joining", preview.adds) }}
@@ -71,7 +87,7 @@
 {{ people_section("Leaving", preview.deactivations) }}
 
 {% if not preview.errors and not change_count %}
-<section class="sheet"><p class="empty"><strong>Nothing to change</strong>Everyone in the file already matches Greenlight.</p></section>
+<section class="sheet">{{ empty_state("Nothing to change", "Everyone in the file already matches Greenlight.") }}</section>
 {% endif %}
 
 <div class="import-actions">
@@ -82,7 +98,8 @@
     <button class="primary" type="submit" data-busy="Applying…">Apply {{ change_count }} change{{ "s" if change_count != 1 }}</button>
   </form>
   {% endif %}
-  <a class="button" href="/manage/people/import">Start again</a>
+  <a class="button{% if preview.errors or not change_count %} primary{% endif %}" href="/manage/people/import">Start again</a>
+</div>
 </div>
 {% endif %}
 {% endblock %}

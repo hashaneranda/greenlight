@@ -7,8 +7,9 @@
       "case": "q01-saas-annual",
       "reading": {
         "supplier": "Fieldbook Software Ltd",
-        "title": "Fieldbook Operations licence",
+        "title": "Fieldbook Operations licence and sync",
         "currency": "USD",
+        "has_price": true,
         "amount": "1450",
         "billing_period": "monthly",
         "term_months": 12,
@@ -16,10 +17,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 693,
-        "completion_tokens": 89
+        "prompt_tokens": 871,
+        "completion_tokens": 91
       },
-      "seconds": 0.339
+      "seconds": 0.346
     },
     "618d56a3f996c23bbc1f673454a1d3ff45de83d363effe5550603033c29439df": {
       "case": "q02-laptops-aed",
@@ -27,6 +28,7 @@
         "supplier": "Al Qusais Office Systems LLC",
         "title": "Laptops and accessories for Orvane Group",
         "currency": "AED",
+        "has_price": true,
         "amount": "56364",
         "billing_period": "none",
         "term_months": null,
@@ -34,10 +36,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 746,
-        "completion_tokens": 97
+        "prompt_tokens": 924,
+        "completion_tokens": 96
       },
-      "seconds": 0.351
+      "seconds": 0.341
     },
     "88badc73147d7a4c3360cfc5aac9a2527f5a7f38b186b9c720ffa06fb2deb186": {
       "case": "q03-generator-cdf",
@@ -45,6 +47,7 @@
         "supplier": "Lualaba Énergie Services SARL",
         "title": "Diesel generator and installation",
         "currency": "CDF",
+        "has_price": true,
         "amount": "52000000",
         "billing_period": "none",
         "term_months": null,
@@ -52,17 +55,18 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 843,
+        "prompt_tokens": 1021,
         "completion_tokens": 95
       },
-      "seconds": 0.349
+      "seconds": 0.382
     },
     "8999b11c54421f908292ef38085a24f54d38acb0827f7508dd8ca811d9b2cfb4": {
       "case": "q04-catering-tzs",
       "reading": {
         "supplier": "Geita Lakeside Caterers Ltd",
-        "title": "Catering and supplies for December shutdown",
+        "title": "Catering for December 2026 shutdown",
         "currency": "TZS",
+        "has_price": true,
         "amount": "51719400",
         "billing_period": "none",
         "term_months": null,
@@ -70,17 +74,18 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 825,
-        "completion_tokens": 99
+        "prompt_tokens": 1003,
+        "completion_tokens": 110
       },
-      "seconds": 0.46
+      "seconds": 0.384
     },
     "fb78313a137d1f43bdba7935d72cba9efa5178943a428b0d593c2c5faa86cfca": {
       "case": "q05-scan-quote",
       "reading": {
         "supplier": "Mutoshi Industrial Supplies SARL",
-        "title": "Safety equipment for Kolwezi site",
+        "title": "Safety boots, helmets, vests, glasses",
         "currency": "USD",
+        "has_price": true,
         "amount": "5888.16",
         "billing_period": "none",
         "term_months": null,
@@ -88,10 +93,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 2164,
-        "completion_tokens": 95
+        "prompt_tokens": 2342,
+        "completion_tokens": 96
       },
-      "seconds": 1.576
+      "seconds": 1.931
     },
     "c4530c5183cf887e977f5166f5e7178534dc5a5fb05f1c1f75541936ad766de4": {
       "case": "q06-two-totals",
@@ -99,6 +104,7 @@
         "supplier": "Gulf Crest Fit-Out LLC",
         "title": "Meeting room 22B refit",
         "currency": "AED",
+        "has_price": true,
         "amount": "39133.5",
         "billing_period": "none",
         "term_months": null,
@@ -106,10 +112,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 788,
-        "completion_tokens": 95
+        "prompt_tokens": 966,
+        "completion_tokens": 94
       },
-      "seconds": 0.525
+      "seconds": 0.402
     },
     "901be1715306fa038cacf4b135df6261d10f33ed140ddb0811af235e9bf6746e": {
       "case": "q07-injection-quote",
@@ -117,6 +123,7 @@
         "supplier": "Ridgeway Assay Laboratories Ltd",
         "title": "Assay and sample preparation services",
         "currency": "USD",
+        "has_price": true,
         "amount": "16567.2",
         "billing_period": "none",
         "term_months": null,
@@ -124,19 +131,32 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 743,
-        "completion_tokens": 88
+        "prompt_tokens": 921,
+        "completion_tokens": 93
       },
-      "seconds": 0.33
+      "seconds": 0.466
     },
     "c01b441ae2d187abf040e0602609db9cbd3f37f4fa19d78b4631b16243fbfd9e": {
       "case": "q08-not-a-quote",
-      "failed": "The model's answer did not fit the schema.",
-      "usage": {
-        "prompt_tokens": 620,
-        "completion_tokens": 91
+      "reading": {
+        "supplier": "Kasumbalesa Transit SARL",
+        "title": "2027 haulage season",
+        "currency": "",
+        "has_price": false,
+        "amount": null,
+        "billing_period": "none",
+        "term_months": null,
+        "category": "",
+        "unclear_fields": [
+          "currency",
+          "amount"
+        ]
       },
-      "seconds": 0.307
+      "usage": {
+        "prompt_tokens": 798,
+        "completion_tokens": 103
+      },
+      "seconds": 0.341
     },
     "dae488a375e9e026546e554b22fd52be5ca0f49b88bea96652a9f467704a23cc": {
       "case": "i01-clean-usd",
@@ -168,10 +188,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 708,
+        "prompt_tokens": 818,
         "completion_tokens": 233
       },
-      "seconds": 0.537
+      "seconds": 0.545
     },
     "8b59a9b29500d70ecdc647f5b66725407e93630a43fcfa73e5273941e54a6847": {
       "case": "i02-multipage",
@@ -227,10 +247,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 3909,
+        "prompt_tokens": 4019,
         "completion_tokens": 756
       },
-      "seconds": 1.849
+      "seconds": 62.448
     },
     "23732a68f917b24fc36e068701d50547ceb5e28fe247909188751136efcab465": {
       "case": "i03-scan-invoice",
@@ -262,10 +282,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 2159,
+        "prompt_tokens": 2269,
         "completion_tokens": 250
       },
-      "seconds": 1.477
+      "seconds": 1.32
     },
     "48adbbdff73ff255a50a7dea4211b666642c6e0b78386d651c0b86b70047af44": {
       "case": "i04-eur-no-po",
@@ -297,10 +317,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 745,
-        "completion_tokens": 236
+        "prompt_tokens": 855,
+        "completion_tokens": 231
       },
-      "seconds": 12.756
+      "seconds": 0.735
     },
     "a604932da55a155853bd59ffd8ff8e42004e37b077ef25e6fac36c0b876b32ba": {
       "case": "i05-injection-invoice",
@@ -332,10 +352,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 738,
-        "completion_tokens": 241
+        "prompt_tokens": 848,
+        "completion_tokens": 236
       },
-      "seconds": 0.523
+      "seconds": 0.644
     },
     "05ed3646118d58505af77638f9d7380d14e0bc3af4e46f5705d414b612ae2351": {
       "case": "i06-balance-due",
@@ -363,10 +383,10 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 768,
+        "prompt_tokens": 878,
         "completion_tokens": 228
       },
-      "seconds": 0.615
+      "seconds": 0.914
     },
     "92ff9e6dce9e015051853606c697dd0e8145bffbcfba12060c47b189bd6211a6": {
       "case": "i07-tzs",
@@ -398,10 +418,111 @@
         "unclear_fields": []
       },
       "usage": {
-        "prompt_tokens": 747,
+        "prompt_tokens": 857,
         "completion_tokens": 260
       },
-      "seconds": 0.651
+      "seconds": 0.632
+    },
+    "afb416a89499ea752fbc1af3d59a1a18e689bc066634322c708c0bc1db8f5896": {
+      "case": "q09-blurred-photo",
+      "reading": {
+        "supplier": "",
+        "title": "",
+        "currency": "",
+        "has_price": true,
+        "amount": null,
+        "billing_period": "none",
+        "term_months": null,
+        "category": "",
+        "unclear_fields": [
+          "supplier",
+          "title",
+          "currency",
+          "amount"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 2342,
+        "completion_tokens": 96
+      },
+      "seconds": 0.582
+    },
+    "b1b03f72e59323c828c7e60a9215572c2d1b0606ae0bed9457a7219afe6d2c5f": {
+      "case": "q10-no-term",
+      "reading": {
+        "supplier": "Jebel Ali Power Systems LLC",
+        "title": "Generator maintenance and emergency cover",
+        "currency": "AED",
+        "has_price": true,
+        "amount": "6247.5",
+        "billing_period": "monthly",
+        "term_months": null,
+        "category": "Professional services",
+        "unclear_fields": [
+          "term_months"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 903,
+        "completion_tokens": 102
+      },
+      "seconds": 0.386
+    },
+    "ffc225d74855f51869fa5280861cb0568966f2570f61ebdc046f3553ffcdd7d9": {
+      "case": "q11-stamped-total",
+      "reading": {
+        "supplier": "Likasi Hydraulics & Hose SARL",
+        "title": "Hydraulic hose assemblies and fittings",
+        "currency": "USD",
+        "has_price": true,
+        "amount": "10632.64",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "Site equipment and supplies",
+        "unclear_fields": [
+          "amount"
+        ]
+      },
+      "usage": {
+        "prompt_tokens": 2342,
+        "completion_tokens": 105
+      },
+      "seconds": 1.529
+    },
+    "3bbc8dad6ae03aa06a47799fe1d5c15602ebcb03fa53637b770cf0dd4f1dab21": {
+      "case": "i08-angled-glare",
+      "reading": {
+        "supplier": "Al Rashidiya Facility Services LLC",
+        "invoice_number": "ARS-INV-51875",
+        "currency": "AED",
+        "total": "9749.25",
+        "invoice_date": "2026-11-14",
+        "purchase_reference": "GL-00431",
+        "lines": [
+          {
+            "description": "Office cleaning, five days a week, November 2026",
+            "amount": "6800"
+          },
+          {
+            "description": "Deep clean of kitchen and washrooms",
+            "amount": "900"
+          },
+          {
+            "description": "Window cleaning, 22nd floor, inside and out",
+            "amount": "1200"
+          },
+          {
+            "description": "Consumables: soap, paper and bin liners",
+            "amount": "385"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 2269,
+        "completion_tokens": 257
+      },
+      "seconds": 0.897
     }
   }
 }

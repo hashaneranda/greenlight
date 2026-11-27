@@ -1,3 +1,12 @@
+const announcement = document.querySelector("[data-announce]");
+if (announcement) {
+  const message = announcement.textContent;
+  announcement.textContent = "";
+  setTimeout(() => {
+    announcement.textContent = message;
+  }, 250);
+}
+
 document.addEventListener("click", (event) => {
   const opener = event.target.closest("[data-open]");
   if (opener) {
@@ -44,11 +53,10 @@ if (requestForm) {
         return line;
       }),
     );
-    advice.hidden = lines.length === 0;
   };
 
   const ask = async () => {
-    const hasQuote = field("kept_quote") || field("quotes").files.length > 0;
+    const hasQuote = field("kept_quote") || field("quotes")?.files.length > 0;
     const params = new URLSearchParams({
       supplier: field("supplier").value,
       category_id: field("category_id").value,
@@ -73,7 +81,27 @@ if (requestForm) {
   };
   field("supplier").addEventListener("input", soon);
   field("category_id").addEventListener("change", soon);
-  field("quotes").addEventListener("change", soon);
+  field("quotes")?.addEventListener("change", soon);
+
+  const rateNotes = requestForm.querySelectorAll(".rate-note");
+  field("currency").addEventListener("change", (event) => {
+    for (const note of rateNotes) note.hidden = note.dataset.currency !== event.target.value;
+  });
+}
+
+for (const drop of document.querySelectorAll("[data-drop]")) {
+  const input = drop.querySelector("input[type=file]");
+  const fileName = drop.querySelector("[data-file-name]");
+  const hint = fileName.textContent;
+  input.addEventListener("change", () => {
+    const names = [...input.files].map((file) => file.name);
+    fileName.textContent = names.length ? names.join(", ") : hint;
+    drop.classList.toggle("chosen", names.length > 0);
+  });
+  input.addEventListener("dragenter", () => drop.classList.add("dragging"));
+  for (const type of ["dragleave", "drop"]) {
+    input.addEventListener(type, () => drop.classList.remove("dragging"));
+  }
 }
 
 const quoteReader = document.querySelector("form.quote-reader");
@@ -86,44 +114,71 @@ if (quoteReader) {
   });
 }
 
+document.addEventListener("click", (event) => {
+  const start = event.target.closest("[data-reason]");
+  if (!start) return;
+  const reason = start.closest("form").elements.namedItem("reason");
+  reason.value = start.dataset.reason;
+  reason.focus();
+  reason.setSelectionRange(reason.value.length, reason.value.length);
+});
+
 const card = document.querySelector("[data-swipe]");
 if (card) {
-  const approveForm = document.querySelector(".review-actions form");
-  const sendBack = document.querySelector("[data-open='reject-sheet']");
+  const approveForm = document.querySelector("#decision form");
+  const sendBack = document.querySelector("#decision [data-open='reject-sheet']");
+  const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const flick = 0.5;
+  const far = 120;
   let startX = null;
+  let startedAt = 0;
   let dx = 0;
 
-  const reset = () => {
+  const settle = () => {
+    card.style.transition = "";
     card.style.transform = "";
     card.style.removeProperty("--verdict-opacity");
     card.removeAttribute("data-verdict");
   };
 
+  approveForm.addEventListener("submit", (event) => {
+    if (calm.matches) return;
+    event.preventDefault();
+    card.style.transition = "";
+    card.style.transform = "";
+    card.classList.add("leaving");
+    setTimeout(() => approveForm.submit(), 200);
+  });
+
   card.addEventListener("pointerdown", (event) => {
-    if (event.target.closest("a, button")) return;
+    if (startX !== null || event.target.closest("a, button")) return;
     startX = event.clientX;
+    startedAt = event.timeStamp;
     card.setPointerCapture(event.pointerId);
+    card.style.transition = "none";
   });
   card.addEventListener("pointermove", (event) => {
     if (startX === null) return;
     dx = event.clientX - startX;
     card.style.transform = `translateX(${dx}px) rotate(${dx / 24}deg)`;
     card.dataset.verdict = dx > 0 ? "Approve" : "Send back";
-    card.style.setProperty("--verdict-opacity", Math.min(Math.abs(dx) / 120, 1));
+    card.style.setProperty("--verdict-opacity", Math.min(Math.abs(dx) / far, 1));
   });
-  card.addEventListener("pointerup", () => {
+  card.addEventListener("pointerup", (event) => {
     if (startX === null) return;
+    const decided = Math.abs(dx) > far || (Math.abs(dx) > 40 && Math.abs(dx) / (event.timeStamp - startedAt) > flick);
     startX = null;
-    if (dx > 120) {
-      card.classList.add("leaving-yes");
-      setTimeout(() => approveForm.requestSubmit(), 250);
-    } else if (dx < -120) {
-      reset();
-      sendBack.click();
+    if (decided && dx > 0) {
+      approveForm.requestSubmit();
     } else {
-      reset();
+      settle();
+      if (decided) sendBack.click();
     }
     dx = 0;
   });
-  card.addEventListener("pointercancel", () => { startX = null; reset(); });
+  card.addEventListener("pointercancel", () => {
+    startX = null;
+    dx = 0;
+    settle();
+  });
 }

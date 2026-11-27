@@ -83,7 +83,8 @@ async def _uploads(form: FormData, field: str = "quotes") -> list[Upload]:
 def _form_page(
     request: Request, template: str, *, values: dict, error: str | None = None, **context
 ):
-    categories, tags, currencies = container_of(request).queries.form_options()
+    queries = container_of(request).queries
+    categories, tags, currencies = queries.form_options()
     return render(
         request,
         template,
@@ -91,6 +92,7 @@ def _form_page(
         categories=categories,
         tags=tags,
         currencies=currencies,
+        stale_rates=[view.rate for view in queries.rates_view() if view.is_stale],
         values=values,
         error=error,
         **context,
@@ -128,7 +130,7 @@ def _values_from(draft: QuoteDraft) -> dict:
     return {
         "title": reading.title,
         "supplier": reading.supplier,
-        "amount": f"{reading.amount:f}",
+        "amount": "" if reading.amount is None else f"{reading.amount:f}",
         "currency": reading.currency,
         "recurring": "yes" if reading.is_recurring else "",
         "billing_period": reading.billing_period or "",

@@ -1,0 +1,14 @@
+[
+  {
+    "recording": "groq-2026-11-27-baseline.json",
+    "change": "The prompt as it was, run with the four hard-to-read documents added. It flags nothing, and it refuses the blurred photo outright because its answer doesn't fit the schema."
+  },
+  {
+    "recording": "groq-2026-11-27-first-try.json",
+    "change": "Not kept. The prompt asks the reader to leave a value empty rather than guess, and to flag any field it couldn't read or had worked out; it flagged the hard fields, but it also flagged the missing price on the letter, so the letter was read as a quote instead of refused."
+  },
+  {
+    "recording": "groq-2026-11-27.json",
+    "change": "Kept. The same prompt, plus a has_price answer so a document with no price is still refused, and a reminder to flag any figure or reference with a digit it can't see. Accuracy on all documents is lower only because the blurred photo is now read, with the fields it can't see left empty and flagged, where before it was refused and not counted."
+  }
+]

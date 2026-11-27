@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import status_text, signal %}
+{% from "partials/macros.html" import status_text, signal, decision_bar, send_back_sheet, payment_form, spend_bar %}
 {% from "partials/history.html" import history_line with context %}
 {% from "partials/icons.html" import icon %}
 {% from "partials/learned.html" import seen_before %}
@@ -12,7 +12,6 @@
 
 <header class="request-hero">
   <p class="ref">{{ r.reference }}{% if r.revision > 1 %}, version {{ r.revision }}{% endif %}</p>
-  <h1>{{ r.title }}</h1>
   <div class="figure">
     {% if r.currency != "USD" %}<span class="ccy">{{ r.currency }}</span>{% endif %}
     <span class="value">{% if r.currency == "USD" %}{{ r.total_usd|usd }}{% else %}{{ "{:,.0f}".format(r.total.amount) }}{% endif %}</span>
@@ -23,6 +22,8 @@
     </span>
     {% endif %}
   </div>
+  <h1>{{ r.title }}</h1>
+  <p class="supplier">From <strong>{{ r.supplier }}</strong></p>
   <div class="hero-status">{{ signal(r, user) }}{{ status_text(r) }}</div>
 </header>
 
@@ -76,7 +77,7 @@
               {% elif step.status == "waiting" %}next in line
               {% else %}not needed any more{% endif %}
             </span>
-            {% if step.decided_on_behalf %}<span class="what">Decided by {{ people.person(step.decided_by_id).name }}, covering</span>{% endif %}
+            {% if step.decided_on_behalf %}<span class="what">By {{ people.person(step.decided_by_id).name }}, covering for {{ approver.first_name }}</span>{% endif %}
             {% if step.comment %}<span class="note">{{ step.comment }}</span>{% endif %}
           </li>
           {% endfor %}
@@ -86,16 +87,7 @@
 
     {{ seen_before(view.precedent, people.categories[r.category_id].name) }}
 
-    {% if view.can_decide %}
-    <div class="decision" aria-label="Your decision">
-      {% if view.covering_for %}<p class="covering">You're covering for {{ view.covering_for.name }}.</p>{% endif %}
-      <button class="danger" type="button" data-open="reject-sheet">Send back</button>
-      <form method="post" action="/requests/{{ r.reference }}/approve">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="primary block" type="submit" data-busy="Approving…">Approve</button>
-      </form>
-    </div>
-    {% endif %}
+    {% if view.can_decide %}{{ decision_bar(r.reference, csrf, view.covering_for) }}{% endif %}
   </div>
 
   <section class="sheet facts-sheet" aria-labelledby="facts-heading">
@@ -103,13 +95,12 @@
     <div class="body">
       <dl class="facts">
         <dt>Why</dt><dd>{{ r.justification }}</dd>
-        <dt>Supplier</dt><dd>{{ r.supplier }}</dd>
         <dt>Asked by</dt><dd>{{ requester.name }}<br><span class="muted small">{{ r.submitted_at|when }}</span></dd>
         <dt>Category</dt><dd>{{ people.categories[r.category_id].name }}</dd>
         {% if r.tag_id %}<dt>For</dt><dd>{{ people.tags[r.tag_id].label }}</dd>{% endif %}
         <dt>Quote</dt>
         <dd>
-          {% for quote in r.quotes %}<a href="/requests/{{ r.reference }}/quotes/{{ quote.id }}">{{ quote.filename }}</a>{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">No quote:</span> {{ r.no_quote_reason }}{% endfor %}
+          {% for quote in r.quotes %}<a class="file" href="/requests/{{ r.reference }}/quotes/{{ quote.id }}">{{ icon("invoice") }}{{ quote.filename }}</a>{% else %}<span class="muted">No quote:</span> {{ r.no_quote_reason }}{% endfor %}
         </dd>
         {% if r.is_confidential %}<dt>Who sees it</dt><dd>Confidential, only the people approving it</dd>{% endif %}
       </dl>
@@ -123,10 +114,10 @@
       <div class="money-line">
         <div><span>Approved</span><strong>{{ r.approved_total_usd|usd }}</strong></div>
         <div><span>Paid</span><strong>{{ r.paid_usd|usd }}</strong></div>
-        <div><span>Left</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
+        <div><span>Still to pay</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
       </div>
-      {% if r.approved_total_usd %}
-      <span class="bar" aria-hidden="true"><span class="paid" style="width: {{ [r.paid_usd / r.approved_total_usd * 100, 100]|min|round(1) }}%"></span></span>
+      {% if r.paid_usd %}
+      {{ spend_bar(r.paid_usd, r.outstanding_usd, 0, r.paid_usd + r.outstanding_usd) }}
       {% endif %}
       {% if r.payments %}
       <ul class="rows flat">
@@ -142,17 +133,7 @@
       {% if view.can_record_payment %}
       <details>
         <summary>Record a payment</summary>
-        <form method="post" action="/requests/{{ r.reference }}/payments" class="spaced-form">
-          <input type="hidden" name="csrf" value="{{ csrf }}">
-          <div class="field"><label for="invoice_reference">Invoice number</label><input id="invoice_reference" name="invoice_reference" required></div>
-          <div class="field">
-            <label for="pay-amount">Amount paid</label>
-            <div class="amount-input"><input id="pay-amount" name="amount" inputmode="decimal" required placeholder="0.00"><input aria-label="Currency" name="currency" value="{{ r.currency }}" maxlength="3" required></div>
-          </div>
-          <div class="field"><label for="paid_on">Paid on</label><input id="paid_on" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
-          <label class="check field"><input type="checkbox" name="confirm_over_approval" value="yes"><span>If this takes us over the approved amount, I've checked it and want to go ahead</span></label>
-          <button class="primary block form-foot" type="submit" data-busy="Recording…">Record payment</button>
-        </form>
+        {{ payment_form(r.reference, csrf, today, key="pay", currency=r.currency) }}
       </details>
       {% endif %}
     </div>
@@ -178,20 +159,5 @@
   {% endif %}
 </div>
 
-{% if view.can_decide %}
-<dialog class="sheet-dialog" id="reject-sheet" aria-labelledby="reject-heading">
-  <div class="grabber"></div>
-  <form method="post" action="/requests/{{ r.reference }}/reject">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <h2 id="reject-heading">Send it back to {{ requester.first_name }}</h2>
-    <p>Say what would get it approved, like a second quote or a lower price. {{ requester.first_name }} sees this straight away.</p>
-    <label class="visually-hidden" for="reason">Your reason</label>
-    <textarea id="reason" name="reason" required placeholder="For example: please get a second quote from Katanga Rentals"></textarea>
-    <div class="buttons">
-      <button type="button" class="quiet" data-close>Cancel</button>
-      <button class="danger solid" type="submit" data-busy="Sending…">Send back</button>
-    </div>
-  </form>
-</dialog>
-{% endif %}
+{% if view.can_decide %}{{ send_back_sheet(r.reference, requester, csrf) }}{% endif %}
 {% endblock %}

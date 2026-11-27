@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
+{% from "partials/macros.html" import payment_form, spend_bar %}
 {% block title %}Invoice check{% endblock %}
 {% block content %}
 {% set unclear = invoice.unclear_fields %}
@@ -87,24 +88,13 @@
         <div class="money-line">
           <div><span>Approved</span><strong>{{ r.approved_total_usd|usd }}</strong></div>
           <div><span>Paid</span><strong>{{ r.paid_usd|usd }}</strong></div>
-          <div><span>Left</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
+          <div><span>Still to pay</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
         </div>
+        {% if r.paid_usd %}{{ spend_bar(r.paid_usd, r.outstanding_usd, 0, r.paid_usd + r.outstanding_usd) }}{% endif %}
 
         <details {% if loop.first %}open{% endif %}>
           <summary>Pay against {{ r.reference }}</summary>
-          <form method="post" action="/requests/{{ r.reference }}/payments">
-            <input type="hidden" name="csrf" value="{{ csrf }}">
-            <div class="field"><label for="inv-{{ loop.index }}">Invoice number</label><input id="inv-{{ loop.index }}" name="invoice_reference" value="{{ invoice.invoice_number }}" required></div>
-            <div class="field">
-              <label for="amt-{{ loop.index }}">Amount to pay</label>
-              <div class="amount-input"><input id="amt-{{ loop.index }}" name="amount" value="{{ invoice.total }}" inputmode="decimal" required><input aria-label="Currency" name="currency" value="{{ invoice.currency }}" maxlength="3" required></div>
-            </div>
-            <div class="field"><label for="paid-{{ loop.index }}">Paid on</label><input id="paid-{{ loop.index }}" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
-            {% if match.warnings %}
-            <label class="check field"><input type="checkbox" name="confirm_over_approval" value="yes"><span>I've checked why it's over the approval and want to pay it anyway</span></label>
-            {% endif %}
-            <button class="primary block form-foot" type="submit" data-busy="Recording…">Record payment</button>
-          </form>
+          {{ payment_form(r.reference, csrf, today, key=loop.index, currency=invoice.currency, invoice_number=invoice.invoice_number, amount=invoice.total, confirm="I've checked why it's over the approval and want to pay it anyway" if match.warnings else None) }}
         </details>
       </div>
     </section>
