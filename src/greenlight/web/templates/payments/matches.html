@@ -88,7 +88,7 @@
         <div class="money-line">
           <div><span>Approved</span><strong>{{ r.approved_total_usd|usd }}</strong></div>
           <div><span>Paid</span><strong>{{ r.paid_usd|usd }}</strong></div>
-          <div><span>Left</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
+          <div><span>Still to pay</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
         </div>
         {% if r.paid_usd %}{{ spend_bar(r.paid_usd, r.outstanding_usd, 0, r.paid_usd + r.outstanding_usd) }}{% endif %}
 

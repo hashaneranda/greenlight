@@ -46,8 +46,16 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="empty"><strong>{{ empty_title }}</strong>{{ empty }}</p>
+  {{ empty_state(empty_title, empty) }}
   {% endif %}
+{%- endmacro %}
+
+{% macro empty_state(title, text) -%}
+  <div class="empty">
+    <span class="signal" aria-hidden="true"><span class="light"></span><span class="light"></span><span class="light"></span></span>
+    <p><strong>{{ title }}</strong>{{ text }}</p>
+    {% if caller %}{{ caller() }}{% endif %}
+  </div>
 {%- endmacro %}
 
 {% macro spend_bar(paid, to_pay, pending, scale, budget=None) -%}

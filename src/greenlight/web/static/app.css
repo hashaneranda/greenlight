@@ -382,8 +382,13 @@ a.row:active::after { background: var(--sunken-2); opacity: 1; }
   border-radius: 50%; background: var(--go); vertical-align: middle;
 }
 
-.empty { padding: var(--s-8) 0; color: var(--muted); }
+.empty { display: grid; justify-items: start; gap: var(--s-4); padding: var(--s-8) 0; color: var(--muted); }
+.empty p { max-width: 46ch; }
 .empty strong { display: block; margin-bottom: var(--s-1); color: var(--ink); font: 800 var(--step-2)/1.2 var(--font-display); font-stretch: var(--condensed); }
+.empty .signal { gap: 6px; }
+.empty .light { width: 16px; height: 16px; }
+.empty .button { margin-top: var(--s-1); }
+.quiet-empty { padding: var(--s-4) 0; max-width: 46ch; }
 
 .chips {
   display: flex; gap: var(--s-2); overflow-x: auto; scrollbar-width: none;
