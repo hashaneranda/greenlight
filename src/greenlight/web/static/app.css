@@ -190,6 +190,9 @@ details[open] > summary + * { animation: unfold .22s var(--ease-out); }
 .inline-form { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
 .inline-form input { min-height: 44px; width: 9rem; }
 .inline-form button { min-height: 44px; }
+.usd-input { position: relative; display: block; }
+.usd-input > span { position: absolute; left: var(--s-4); top: 50%; translate: 0 -50%; color: var(--muted); font-weight: 700; pointer-events: none; }
+.usd-input input { padding-left: var(--s-8); font-variant-numeric: tabular-nums; }
 
 /* Signals: the route lights and status words */
 
@@ -643,10 +646,18 @@ td a { font-weight: 700; }
 .advice .learned::before { background: var(--go); }
 .advice .lesson::before { background: var(--wait-mark); }
 
-.suggestions { list-style: none; display: grid; gap: var(--s-3); margin: var(--s-4) 0 0; padding: 0; }
-.suggestions li { padding: var(--s-4) var(--s-5); border-radius: var(--r-card); background: var(--sunken); }
-.suggestions p { margin: 0 0 var(--s-2); }
+.suggestions { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--s-4); margin: var(--s-4) 0 0; padding: 0; }
+.suggestions li { display: grid; align-content: start; gap: var(--s-2); padding: var(--s-6); border-radius: var(--r-card); background: var(--sunken); }
+.suggested-by { color: var(--muted); font-size: var(--step--2); font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.suggestions h3 { font-size: var(--step-2); font-weight: 800; line-height: 1.15; }
+.suggestions .why { max-width: 60ch; color: var(--muted); font-size: var(--step--1); }
 .suggestions form { margin-top: var(--s-3); }
+.limit-change {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); margin: var(--s-1) 0 var(--s-2);
+  font: 900 var(--step-3)/1 var(--font-display); font-stretch: var(--condensed); font-variant-numeric: tabular-nums;
+}
+.limit-change .was { color: var(--muted); font-weight: 800; text-decoration: line-through; text-decoration-thickness: 2px; }
+.limit-change [aria-hidden] { color: var(--muted); font-weight: 400; }
 
 /* Home pieces */
 
