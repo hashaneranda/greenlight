@@ -1,0 +1,6 @@
+[
+  {
+    "recording": "groq-2026-11-27-baseline.json",
+    "change": "The prompt as it was, run on the four new hard-to-read documents as well as the first fifteen."
+  }
+]
