@@ -3,6 +3,7 @@
 {% macro it_check(id, checked) -%}
   <label class="check"><input type="checkbox" id="{{ id }}" name="it_review" value="yes" {% if checked %}checked{% endif %}><span>IT approves these<span class="hint">Whatever the amount, IT says yes before the COO.</span></span></label>
 {%- endmacro %}
+{% from "partials/macros.html" import empty_state %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -23,10 +24,12 @@
   </form>
 
   <section class="sheet">
-    <div class="sheet-head"><h2>In use and retired</h2></div>
+    {% set retired = categories|rejectattr("is_active")|list %}
+    <div class="sheet-head"><h2>{{ categories|length - retired|length }} in use{% if retired %}, {{ retired|length }} retired{% endif %}</h2></div>
+    {% if categories %}
     <ul class="rows">
       {% for category in categories %}
-      <li class="row">
+      <li class="row category{% if not category.is_active %} retired{% endif %}">
         <span class="title">{{ category.name }}</span>
         <form class="end" method="post" action="/manage/categories/{{ category.id }}">
           <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -35,7 +38,7 @@
           <input type="hidden" name="is_active" value="{{ 'no' if category.is_active else 'yes' }}">
           <button class="link small" type="submit">{{ "Retire" if category.is_active else "Bring back" }}</button>
         </form>
-        <span class="sub">{% if not category.is_active %}<span class="status-text">Retired</span>{% elif category.requires_it_review %}IT approves these{% endif %}</span>
+        {% if not category.is_active %}<span class="sub"><span class="tag">Retired</span></span>{% elif category.requires_it_review %}<span class="sub"><span class="tag">IT approves these</span></span>{% endif %}
         {% if category.is_active %}
         <details class="wide">
           <summary>Change</summary>
@@ -51,6 +54,9 @@
       </li>
       {% endfor %}
     </ul>
+    {% else %}
+    {{ empty_state("No categories yet", "Add the kinds of spend people ask for, like travel or software, so every request is filed the same way.") }}
+    {% endif %}
   </section>
 </div>
 {% endblock %}

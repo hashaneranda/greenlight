@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Exchange rates{% endblock %}
+{% from "partials/macros.html" import empty_state %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -7,6 +8,19 @@
     <p>What one unit of each currency is worth in US dollars. Requests in other currencies are converted with these, so a rate older than {{ stale_after_days }} days is marked out of date.</p>
   </div>
 </div>
+
+{% set stale = rates|selectattr("is_stale")|map(attribute="rate.currency")|list %}
+{% if stale %}
+<div class="verdict warn">
+  <span class="light pending" aria-hidden="true"></span>
+  <div><strong>{{ stale|length }} rate{{ "s are" if stale|length != 1 else " is" }} out of date</strong>{{ stale|join(", ") }} {{ "were" if stale|length != 1 else "was" }} set more than {{ stale_after_days }} days ago. Update {{ "them" if stale|length != 1 else "it" }} so requests in {{ "those currencies" if stale|length != 1 else "that currency" }} convert at today's value.</div>
+</div>
+{% elif rates %}
+<div class="verdict">
+  <span class="light approved" aria-hidden="true"></span>
+  <div><strong>Every rate is up to date</strong>All {{ rates|length }} were set in the last {{ stale_after_days }} days.</div>
+</div>
+{% endif %}
 
 <div class="two-up">
   <form class="sheet" method="post" action="/manage/rates">
@@ -28,16 +42,16 @@
     <ul class="rows">
       {% for view in rates %}
       {% set setter = lookups.person(view.rate.updated_by_id) %}
-      <li class="row">
+      <li class="row rate{% if view.is_stale %} stale{% endif %}">
         <span class="title">{{ view.rate.currency }}</span>
         <span class="amount">${{ view.rate.usd_per_unit|rate }}</span>
         <span class="sub">{{ "Set by " ~ setter.name if setter else "Set at setup" }}, {{ view.rate.updated_at|when }}</span>
-        <span class="sub end">{% if view.is_stale %}<span class="status-text pending">Out of date</span>{% endif %}</span>
+        <span class="sub end">{% if view.is_stale %}<span class="tag wait">Out of date</span>{% endif %}</span>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="empty"><strong>No rates yet</strong>Add one for each currency people are quoted in.</p>
+    {{ empty_state("No rates yet", "Add one for each currency people are quoted in.") }}
     {% endif %}
   </section>
 </div>
