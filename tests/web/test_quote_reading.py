@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from greenlight.application.use_cases import SpendApprovals
 from greenlight.config import Settings
 from greenlight.domain.quote_reading import QuoteReading
+from greenlight.domain.spend_request import BillingPeriod
 from greenlight.infrastructure.clock import SystemClock
 from greenlight.infrastructure.persistence.unit_of_work import SqlUnitOfWork
 from greenlight.infrastructure.seed import seed_demo
@@ -79,3 +80,17 @@ def test_a_confidential_quote_is_attached_without_reaching_ai(client, reader):
     assert reader.reads == 0
     assert "It was not sent to AI." in page
     assert "Read by AI" not in page
+
+
+def test_a_contract_length_the_quote_never_states_is_marked_to_check(client, reader):
+    reader.reading = replace(
+        HARD_TO_READ,
+        billing_period=BillingPeriod.MONTHLY,
+        term_months=None,
+        unclear_fields=("term_months",),
+    )
+
+    page = read(client).text
+
+    assert 'placeholder="12" class="unclear"' in page
+    assert page.count("Check this</span>") == 1

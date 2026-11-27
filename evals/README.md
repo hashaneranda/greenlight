@@ -37,6 +37,8 @@ The hard-to-read cases, and the fields each one should flag:
 
 The suppliers, addresses, bank details and figures are all made up.
 
+One label was changed after seeing a result. In `q09-blurred-photo`, `currency` was added to the fields an honest reader should flag after the first prompt change was run, because on a second look the currency is only printed beside the amounts, which can't be read. It changes no headline number: the reader left the currency empty, so it counts as a field to flag because it was read wrong, and the kept prompt's flag recall is 5 of 7 with or without the label.
+
 ## Running it
 
 ```sh
