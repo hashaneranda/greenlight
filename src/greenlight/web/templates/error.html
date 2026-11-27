@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ "Not allowed" if status_code == 403 else "Not found" if status_code == 404 else "Something went wrong" }}{% endblock %}
 {% block content %}
-<section class="sheet error-sheet">
-  <div class="body">
-    <span class="signal" aria-hidden="true"><span class="light rejected"></span><span class="light"></span><span class="light"></span></span>
-    <h1>{{ "Not for you" if status_code == 403 else "Can't find that" if status_code == 404 else "Something went wrong" }}</h1>
-    <p>{{ message }}</p>
+<section class="error-sheet">
+  <span class="signal" aria-hidden="true"><span class="light{% if status_code != 404 %} rejected{% endif %}"></span><span class="light"></span><span class="light"></span></span>
+  <h1>{{ "Not for you" if status_code == 403 else "Can't find that" if status_code == 404 else "Something went wrong" }}</h1>
+  <p>{{ message }}</p>
+  <div class="error-actions">
     <a class="button primary" href="/">Back to home</a>
+    {% if user and status_code == 404 %}<a class="button" href="/requests">See all requests</a>{% endif %}
   </div>
 </section>
 {% endblock %}

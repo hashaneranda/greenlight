@@ -58,7 +58,7 @@ def test_finance_adds_a_category_people_can_choose(client):
     client.post("/manage/categories", data={"csrf": csrf_from(page), "name": "Office furniture"})
 
     assert "Office furniture" in client.get("/requests/new").text
-    assert "added a category" in client.get("/audit").text
+    assert "Added a category" in client.get("/audit").text
 
 
 def test_a_retired_category_drops_out_of_the_request_form(client):
