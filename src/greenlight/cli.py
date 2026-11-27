@@ -43,6 +43,8 @@ def seed() -> None:
         raise SystemExit("Refusing to load demo data into production.")
     container = build_container(settings)
     if seed_demo(container.session_factory, container.approvals):
+        while container.notifications.deliver_pending():
+            pass
         log.info("Loaded the Orvane demo organisation.")
     else:
         log.info("People already exist, demo data not loaded.")
