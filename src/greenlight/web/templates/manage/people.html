@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
+{% from "partials/macros.html" import empty_state %}
 {% block title %}People{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -22,22 +23,32 @@
   <button type="submit">Search</button>
 </form>
 
-<section class="sheet">
+<section class="sheet" aria-labelledby="people-heading">
+  <div class="sheet-head">
+    <h2 id="people-heading">{% if q %}{{ people|length }} match{{ "es" if people|length != 1 }}{% else %}{{ people|length }} {{ "person" if people|length == 1 else "people" }}{% endif %}</h2>
+    {% if q and people %}<a class="small" href="/manage/people">Show everyone</a>{% endif %}
+  </div>
   {% if people %}
   <ul class="rows">
     {% for person in people %}
     {% set manager = lookups.person(person.manager_id) %}
     <li>
-      <a class="row" href="/manage/people/{{ person.id }}">
+      <a class="row person{% if not person.is_active %} left{% endif %}" href="/manage/people/{{ person.id }}">
         <span class="title">{{ person.name }}</span>
-        <span class="sub end">{% if person.is_active %}{% for role, (label, _) in roles.items() if role in person.roles %}{{ label }}{{ ", " if not loop.last }}{% endfor %}{% else %}<span class="status-text">Left</span>{% endif %}</span>
+        <span class="avatar" aria-hidden="true">{{ person.initials }}</span>
         <span class="sub">{{ person.job_title or person.email }}{% if manager %}, reports to {{ manager.name }}{% endif %}</span>
+        {% if person.is_active and person.roles %}
+        <span class="more">{% for role, (label, _) in roles.items() if role in person.roles %}<span class="tag">{{ label }}</span>{% endfor %}</span>
+        {% endif %}
+        {% if not person.is_active %}<span class="end"><span class="tag">Left</span></span>{% endif %}
       </a>
     </li>
     {% endfor %}
   </ul>
+  {% elif q %}
+  {% call empty_state("Nobody matches “" ~ q ~ "”", "Try part of their name, email or job title. Someone who has left still shows up.") %}<a class="button compact" href="/manage/people">Show everyone</a>{% endcall %}
   {% else %}
-  <p class="empty"><strong>Nobody matches</strong>Try part of their name, email or job title.</p>
+  {% call empty_state("Nobody here yet", "Add people one at a time, or import everyone from your HR system.") %}<a class="button compact" href="/manage/people/import">Import from HR</a>{% endcall %}
   {% endif %}
 </section>
 {% endblock %}

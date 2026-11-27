@@ -22,35 +22,37 @@
 
 {% if error %}<div class="notice error" role="alert">{{ error }}</div>{% endif %}
 
-<form class="sheet" method="post" action="{{ '/manage/people/' ~ person.id if person else '/manage/people/new' }}">
+<div class="two-up">
+<form class="sheet person-form" method="post" action="{{ '/manage/people/' ~ person.id if person else '/manage/people/new' }}">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <div class="body form-body">
-    <div class="field-row">
-      <div class="field"><label for="name">Name</label><input id="name" name="name" maxlength="200" required value="{{ values.name }}" autocomplete="off"></div>
-      <div class="field"><label for="email">Work email</label><input id="email" name="email" type="email" maxlength="320" required value="{{ values.email }}" autocomplete="off"></div>
-    </div>
-    <div class="field"><label for="job_title">Job title</label><input id="job_title" name="job_title" maxlength="200" value="{{ values.job_title }}"></div>
-    <div class="field-row">
-      {{ choose("department_id", "Department", departments, "No department") }}
-      {{ choose("site_id", "Site", sites, "No site") }}
-    </div>
-    {{ choose("manager_id", "Reports to", managers, "Nobody, they're at the top") }}
-    <fieldset>
-      <legend>What else they can do</legend>
-      <div class="role-checks">
-        {% for role, (label, hint) in roles.items() %}
-        <label class="check"><input type="checkbox" name="roles" value="{{ role }}" {% if role in chosen_roles %}checked{% endif %}><span>{{ label }}<span class="hint">{{ hint }}</span></span></label>
-        {% endfor %}
-      </div>
-    </fieldset>
-    <button class="primary block form-foot" type="submit">{{ "Save changes" if person else "Add person" }}</button>
+  <h2 class="section-title">Who they are</h2>
+  <div class="field"><label for="name">Name</label><input id="name" name="name" maxlength="200" required value="{{ values.name }}" autocomplete="off"></div>
+  <div class="field"><label for="email">Work email <span class="hint">They sign in with this.</span></label><input id="email" name="email" type="email" maxlength="320" required value="{{ values.email }}" autocomplete="off" spellcheck="false"></div>
+  <div class="field"><label for="job_title">Job title <span class="hint">Optional</span></label><input id="job_title" name="job_title" maxlength="200" value="{{ values.job_title }}"></div>
+
+  <h2 class="section-title">Where they sit</h2>
+  {{ choose("manager_id", "Reports to", managers, "Nobody, they're at the top") }}
+  <div class="field-row">
+    {{ choose("department_id", "Department", departments, "No department") }}
+    {{ choose("site_id", "Site", sites, "No site") }}
   </div>
+
+  <h2 class="section-title">What else they can do</h2>
+  <fieldset>
+    <legend class="visually-hidden">What else they can do</legend>
+    <div class="role-checks">
+      {% for role, (label, hint) in roles.items() %}
+      <label class="check"><input type="checkbox" name="roles" value="{{ role }}" {% if role in chosen_roles %}checked{% endif %}><span>{{ label }}<span class="hint">{{ hint }}</span></span></label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <button class="primary block form-foot" type="submit">{{ "Save changes" if person else "Add person" }}</button>
 </form>
 
 {% if person and person.is_active %}
-<form class="sheet" id="leave" method="post" action="/manage/people/{{ person.id }}/deactivate">
+<form class="sheet leaving" id="leave" method="post" action="/manage/people/{{ person.id }}/deactivate">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <div class="sheet-head"><h2>{{ person.first_name }} is leaving?</h2></div>
+  <div class="sheet-head"><h2>Is {{ person.first_name }} leaving?</h2></div>
   {% set manager = lookups.person(person.manager_id) %}
   <div class="body">
     <p class="muted">They won't be able to sign in{% if manager %}, and anyone who reports to them will report to {{ manager.name }}{% endif %}.</p>
@@ -71,4 +73,5 @@
   </div>
 </form>
 {% endif %}
+</div>
 {% endblock %}
