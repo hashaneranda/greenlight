@@ -116,6 +116,14 @@ class Breakdown:
         self.paid_usd += request.paid_usd
         self.pending_usd += request.awaiting_approval_usd
 
+    @property
+    def to_pay_usd(self) -> Decimal:
+        return max(ZERO, self.committed_usd - self.paid_usd)
+
+    @property
+    def total_usd(self) -> Decimal:
+        return self.paid_usd + self.to_pay_usd + self.pending_usd
+
 
 @dataclass
 class Dashboard:
@@ -437,4 +445,4 @@ def _breakdown(
     for request in requests:
         label = label_of(request)
         groups.setdefault(label, Breakdown(label, budget_usd=budgets.get(label))).add(request)
-    return sorted(groups.values(), key=lambda g: g.committed_usd + g.pending_usd, reverse=True)
+    return sorted(groups.values(), key=lambda g: g.total_usd, reverse=True)

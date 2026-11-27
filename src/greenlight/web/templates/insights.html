@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import request_rows, breakdown_rows %}
+{% from "partials/macros.html" import request_rows, breakdown_rows, spend_bar %}
 {% block title %}Insights{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -10,21 +10,24 @@
   {% if user.sees_all_spend %}<div class="actions"><a class="button" href="/rules">Approval rules</a></div>{% endif %}
 </div>
 
-<div class="totals">
-  <div class="total"><span>Approved</span><strong>{{ board.approved_usd|usd }}</strong></div>
-  <div class="total"><span>Paid</span><strong>{{ board.paid_usd|usd }}</strong></div>
-  <div class="total"><span>Still to pay</span><strong>{{ board.outstanding_usd|usd }}</strong></div>
-  <div class="total"><span>Waiting for approval</span><strong>{{ board.pending_usd|usd }}</strong></div>
-</div>
-
-<p class="key"><span><i class="paid"></i>Paid</span><span><i class="committed"></i>Approved, not paid</span><span><i class="pending"></i>Waiting for approval</span></p>
+<section class="spend-summary" aria-labelledby="summary-heading">
+  <h2 id="summary-heading" class="visually-hidden">Totals</h2>
+  <dl class="spend-totals">
+    <div><dt>Approved</dt><dd>{{ board.approved_usd|usd }}</dd></div>
+    <div><dt><i class="key paid" aria-hidden="true"></i>Paid</dt><dd>{{ board.paid_usd|usd }}</dd></div>
+    <div><dt><i class="key to-pay" aria-hidden="true"></i>Still to pay</dt><dd>{{ board.outstanding_usd|usd }}</dd></div>
+    <div><dt><i class="key pending" aria-hidden="true"></i>Waiting for approval</dt><dd>{{ board.pending_usd|usd }}</dd></div>
+  </dl>
+  {% set everything = board.paid_usd + board.outstanding_usd + board.pending_usd %}
+  {% if everything %}{{ spend_bar(board.paid_usd, board.outstanding_usd, board.pending_usd, everything) }}{% endif %}
+</section>
 
 <div class="insight-grid">
-  <section class="sheet"><div class="sheet-head"><h2>Projects</h2></div>{{ breakdown_rows(board.by_project, show_budget=True) }}</section>
-  <section class="sheet"><div class="sheet-head"><h2>Trips</h2></div>{{ breakdown_rows(board.by_trip) }}</section>
-  <section class="sheet"><div class="sheet-head"><h2>Categories</h2></div>{{ breakdown_rows(board.by_category) }}</section>
-  <section class="sheet"><div class="sheet-head"><h2>Departments</h2></div>{{ breakdown_rows(board.by_department) }}</section>
+  <section class="sheet" aria-labelledby="projects-heading"><div class="sheet-head"><h2 id="projects-heading">Projects</h2><span class="muted small">Against budget</span></div>{{ breakdown_rows(board.by_project, show_budget=True) }}</section>
+  <section class="sheet" aria-labelledby="trips-heading"><div class="sheet-head"><h2 id="trips-heading">Trips</h2></div>{{ breakdown_rows(board.by_trip) }}</section>
+  <section class="sheet" aria-labelledby="categories-heading"><div class="sheet-head"><h2 id="categories-heading">Categories</h2></div>{{ breakdown_rows(board.by_category) }}</section>
+  <section class="sheet" aria-labelledby="departments-heading"><div class="sheet-head"><h2 id="departments-heading">Departments</h2></div>{{ breakdown_rows(board.by_department) }}</section>
 </div>
 
-<section class="sheet"><div class="sheet-head"><h2>Latest requests</h2></div>{{ request_rows(board.recent, lookups, viewer=user) }}</section>
+<section class="sheet" aria-labelledby="latest-heading"><div class="sheet-head"><h2 id="latest-heading">Latest requests</h2></div>{{ request_rows(board.recent, lookups, viewer=user) }}</section>
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/macros.html" import status_text, signal, decision_bar, send_back_sheet %}
+{% from "partials/macros.html" import status_text, signal, decision_bar, send_back_sheet, payment_form, spend_bar %}
 {% from "partials/history.html" import history_line with context %}
 {% from "partials/icons.html" import icon %}
 {% from "partials/learned.html" import seen_before %}
@@ -117,7 +117,7 @@
         <div><span>Left</span><strong>{{ r.outstanding_usd|usd }}</strong></div>
       </div>
       {% if r.paid_usd %}
-      <span class="bar" aria-hidden="true"><span class="paid" style="width: {{ [r.paid_usd / r.approved_total_usd * 100, 100]|min|round(1) }}%"></span></span>
+      {{ spend_bar(r.paid_usd, r.outstanding_usd, 0, r.paid_usd + r.outstanding_usd) }}
       {% endif %}
       {% if r.payments %}
       <ul class="rows flat">
@@ -133,17 +133,7 @@
       {% if view.can_record_payment %}
       <details>
         <summary>Record a payment</summary>
-        <form method="post" action="/requests/{{ r.reference }}/payments" class="spaced-form">
-          <input type="hidden" name="csrf" value="{{ csrf }}">
-          <div class="field"><label for="invoice_reference">Invoice number</label><input id="invoice_reference" name="invoice_reference" required></div>
-          <div class="field">
-            <label for="pay-amount">Amount paid</label>
-            <div class="amount-input"><input id="pay-amount" name="amount" inputmode="decimal" required placeholder="0.00"><input aria-label="Currency" name="currency" value="{{ r.currency }}" maxlength="3" required></div>
-          </div>
-          <div class="field"><label for="paid_on">Paid on</label><input id="paid_on" name="paid_on" type="date" value="{{ today.isoformat() }}"></div>
-          <label class="check field"><input type="checkbox" name="confirm_over_approval" value="yes"><span>If this takes us over the approved amount, I've checked it and want to go ahead</span></label>
-          <button class="primary block form-foot" type="submit" data-busy="Recording…">Record payment</button>
-        </form>
+        {{ payment_form(r.reference, csrf, today, key="pay", currency=r.currency) }}
       </details>
       {% endif %}
     </div>
