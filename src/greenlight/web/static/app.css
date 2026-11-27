@@ -391,11 +391,13 @@ a.row:active::after { background: var(--sunken-2); opacity: 1; }
 .rows.stacked .row { grid-template-columns: 1fr; }
 .row.retired .title { color: var(--muted); }
 .row.rate .title { font: 800 var(--step-2)/1.1 var(--font-display); font-stretch: var(--condensed); letter-spacing: .02em; }
-.rows.inbox .message { grid-column: 1 / -1; white-space: pre-line; color: var(--ink); }
-.rows.inbox .new .title::before {
-  content: ""; display: inline-block; width: 8px; height: 8px; margin: 0 8px 2px 0;
-  border-radius: 50%; background: var(--go); vertical-align: middle;
-}
+.inbox-sheet { max-width: 820px; }
+.rows.inbox .title { font-weight: 600; }
+.rows.inbox .new .title { font-weight: 800; }
+.rows.inbox .message { grid-column: 1 / -1; max-width: 68ch; white-space: pre-line; font-size: var(--step--1); line-height: 1.45; }
+.rows.inbox .delivery.failed { color: var(--stop); font-weight: 600; }
+.rows.inbox .open { color: var(--signal-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.sheet-head h2 .count { margin-left: var(--s-1); vertical-align: 3px; }
 
 .empty { display: grid; justify-items: start; gap: var(--s-4); padding: var(--s-8) 0; color: var(--muted); }
 .empty p { max-width: 46ch; }

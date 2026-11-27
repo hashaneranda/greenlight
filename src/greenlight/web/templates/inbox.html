@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/macros.html" import empty_state %}
 {% block title %}Inbox{% endblock %}
 {% set sent_by = {
   "email": "Emailed",
@@ -11,20 +12,12 @@
 {%- endmacro %}
 {% macro notice(item) -%}
   <span class="title">{{ item.subject }}</span>
-  <span class="sub end">{% if item.is_new %}<span class="status-text pending">New</span>{% endif %}</span>
-  <span class="sub message">{{ item.body }}</span>
-  <span class="sub">{{ delivery(item) }}</span>
-  <span class="sub end">{{ item.created_at|when }}</span>
+  <span class="sub end"><time datetime="{{ item.created_at.isoformat() }}">{{ item.created_at|when }}</time></span>
+  <span class="message">{{ item.body }}</span>
+  <span class="sub delivery{% if item.delivery_error and not item.channel %} failed{% endif %}">{{ delivery(item) }}</span>
+  {% if item.reference %}<span class="sub end open">Open request</span>{% endif %}
 {%- endmacro %}
-{% block content %}
-<div class="page-head">
-  <div>
-    <h1>Inbox</h1>
-    <p>Everything Greenlight has sent you, and how it reached you.</p>
-  </div>
-</div>
-<section class="sheet">
-  {% if items %}
+{% macro inbox_rows(items) -%}
   <ul class="rows inbox">
     {% for item in items %}
     <li{% if item.is_new %} class="new"{% endif %}>
@@ -36,8 +29,31 @@
     </li>
     {% endfor %}
   </ul>
-  {% else %}
-  <p class="empty"><strong>Nothing yet</strong>When a request needs you, or one of yours moves, it shows up here.</p>
-  {% endif %}
+{%- endmacro %}
+{% block content %}
+{% set fresh = items|selectattr("is_new")|list %}
+{% set earlier = items|rejectattr("is_new")|list %}
+<div class="page-head">
+  <div>
+    <h1>Inbox</h1>
+    <p>Everything Greenlight has sent you, and how it reached you.</p>
+  </div>
+</div>
+{% if fresh %}
+<section class="sheet inbox-sheet" aria-labelledby="new-heading">
+  <div class="sheet-head"><h2 id="new-heading">New <span class="count">{{ fresh|length }}</span></h2></div>
+  {{ inbox_rows(fresh) }}
 </section>
+{% endif %}
+{% if earlier %}
+<section class="sheet inbox-sheet" aria-labelledby="earlier-heading">
+  <div class="sheet-head{% if fresh %} quiet{% endif %}"><h2 id="earlier-heading">{{ "Earlier" if fresh else "Already seen" }}</h2></div>
+  {{ inbox_rows(earlier) }}
+</section>
+{% endif %}
+{% if not items %}
+<section class="sheet">
+  {{ empty_state("Nothing here yet", "When a request needs your OK, or one of yours moves on, Greenlight tells you here and says how else it reached you.") }}
+</section>
+{% endif %}
 {% endblock %}
