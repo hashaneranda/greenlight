@@ -106,9 +106,9 @@
       <div class="sheet-head"><h2 id="picture-heading">{{ "The whole picture" if user.sees_all_spend else "Spend you can see" }}</h2><a class="small" href="/insights">Where the money goes</a></div>
       <div class="body">
         <div class="mini-totals">
-          <div><span>Waiting for approval</span><strong>{{ board.pending_usd|usd }}</strong></div>
           <div><span>Approved</span><strong>{{ board.approved_usd|usd }}</strong></div>
-          <div><span>Approved, not paid yet</span><strong>{{ board.outstanding_usd|usd }}</strong></div>
+          <div><span>Still to pay</span><strong>{{ board.outstanding_usd|usd }}</strong></div>
+          <div><span>Waiting for approval</span><strong>{{ board.pending_usd|usd }}</strong></div>
         </div>
       </div>
       {% if board.by_project %}{{ breakdown_rows(board.by_project[:3], show_budget=True) }}{% endif %}
