@@ -42,6 +42,7 @@
   {% endif %}
 {%- endmacro %}
 
+<a class="skip" href="#main">Skip to content</a>
 <div class="shell {{ 'signed-in' if user else 'signed-out' }}">
   {% if user %}
   <aside class="rail">
@@ -73,9 +74,11 @@
       {% endif %}
     </header>
 
-    <main class="page">
-      {% if flash %}
-      <div class="toast {{ flash.kind }}" role="status" aria-live="polite"><span class="light" aria-hidden="true"></span>{{ flash.message }}</div>
+    <main class="page" id="main">
+      {% if flash and flash.kind == "error" %}
+      <div class="notice error" role="alert">{{ flash.message }}</div>
+      {% elif flash %}
+      <div class="toast {{ flash.kind }}" role="status"><span class="light" aria-hidden="true"></span><span data-announce>{{ flash.message }}</span></div>
       {% endif %}
       {% block content %}{% endblock %}
     </main>

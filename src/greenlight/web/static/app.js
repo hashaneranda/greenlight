@@ -1,3 +1,12 @@
+const announcement = document.querySelector("[data-announce]");
+if (announcement) {
+  const message = announcement.textContent;
+  announcement.textContent = "";
+  setTimeout(() => {
+    announcement.textContent = message;
+  }, 250);
+}
+
 document.addEventListener("click", (event) => {
   const opener = event.target.closest("[data-open]");
   if (opener) {
@@ -44,7 +53,6 @@ if (requestForm) {
         return line;
       }),
     );
-    advice.hidden = lines.length === 0;
   };
 
   const ask = async () => {

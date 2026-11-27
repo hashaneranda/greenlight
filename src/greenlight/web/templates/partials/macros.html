@@ -152,7 +152,7 @@
 {%- endmacro %}
 
 {% macro decision_bar(reference, csrf, covering_for=None, next="") -%}
-  <div class="decision" id="decision" aria-label="Your decision">
+  <div class="decision" id="decision" role="group" aria-label="Your decision">
     {% if covering_for %}<p class="covering">You're covering for {{ covering_for.name }}.</p>{% endif %}
     <button class="danger" type="button" data-open="reject-sheet">Send back</button>
     <form method="post" action="/requests/{{ reference }}/approve">

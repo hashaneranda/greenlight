@@ -42,6 +42,7 @@ Page titles are uppercase and tight ("NADIA, 3 NEED YOUR OK"). On a request, in 
 | `--go` | #12804f | Approved |
 | `--wait` / `--wait-mark` | #ffb224 / #b56a00 | Waiting: the fill, and the light's ring |
 | `--stop` | #c8372d | Sent back, over the approval |
+| `--focus` | ink, or white on ink surfaces | The 3px keyboard focus ring |
 
 Each status also has a wash for backgrounds and an ink for text on that wash.
 
