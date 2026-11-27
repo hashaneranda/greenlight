@@ -26,8 +26,8 @@ def latest_run():
     return replay(load_cases(EVALS), Recording.load(recordings[-1]))
 
 
-def test_the_recorded_answers_still_read_well(latest_run):
-    scores = latest_run.scores
+def test_the_recorded_answers_still_read_clear_documents_well(latest_run):
+    scores = [result.score for result in latest_run.results if not result.case.hard_to_read]
     right = sum(len(score.fields) - len(score.wrong) for score in scores)
     compared = sum(len(score.fields) for score in scores)
 

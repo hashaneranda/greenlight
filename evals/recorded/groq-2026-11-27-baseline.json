@@ -1,5 +1,5 @@
 {
-  "label": "groq-2026-11-27",
+  "label": "groq-2026-11-27-baseline",
   "model": "qwen/qwen3.8-27b",
   "recorded_on": "2026-11-27",
   "reads": {
@@ -19,7 +19,7 @@
         "prompt_tokens": 693,
         "completion_tokens": 89
       },
-      "seconds": 0.339
+      "seconds": 0.435
     },
     "618d56a3f996c23bbc1f673454a1d3ff45de83d363effe5550603033c29439df": {
       "case": "q02-laptops-aed",
@@ -37,7 +37,7 @@
         "prompt_tokens": 746,
         "completion_tokens": 97
       },
-      "seconds": 0.351
+      "seconds": 0.331
     },
     "88badc73147d7a4c3360cfc5aac9a2527f5a7f38b186b9c720ffa06fb2deb186": {
       "case": "q03-generator-cdf",
@@ -55,13 +55,13 @@
         "prompt_tokens": 843,
         "completion_tokens": 95
       },
-      "seconds": 0.349
+      "seconds": 0.322
     },
     "8999b11c54421f908292ef38085a24f54d38acb0827f7508dd8ca811d9b2cfb4": {
       "case": "q04-catering-tzs",
       "reading": {
         "supplier": "Geita Lakeside Caterers Ltd",
-        "title": "Catering and supplies for December shutdown",
+        "title": "Catering for December 2026 shutdown",
         "currency": "TZS",
         "amount": "51719400",
         "billing_period": "none",
@@ -71,9 +71,9 @@
       },
       "usage": {
         "prompt_tokens": 825,
-        "completion_tokens": 99
+        "completion_tokens": 102
       },
-      "seconds": 0.46
+      "seconds": 0.344
     },
     "fb78313a137d1f43bdba7935d72cba9efa5178943a428b0d593c2c5faa86cfca": {
       "case": "q05-scan-quote",
@@ -91,7 +91,7 @@
         "prompt_tokens": 2164,
         "completion_tokens": 95
       },
-      "seconds": 1.576
+      "seconds": 1.66
     },
     "c4530c5183cf887e977f5166f5e7178534dc5a5fb05f1c1f75541936ad766de4": {
       "case": "q06-two-totals",
@@ -109,7 +109,7 @@
         "prompt_tokens": 788,
         "completion_tokens": 95
       },
-      "seconds": 0.525
+      "seconds": 0.446
     },
     "901be1715306fa038cacf4b135df6261d10f33ed140ddb0811af235e9bf6746e": {
       "case": "q07-injection-quote",
@@ -127,7 +127,7 @@
         "prompt_tokens": 743,
         "completion_tokens": 88
       },
-      "seconds": 0.33
+      "seconds": 0.309
     },
     "c01b441ae2d187abf040e0602609db9cbd3f37f4fa19d78b4631b16243fbfd9e": {
       "case": "q08-not-a-quote",
@@ -136,7 +136,7 @@
         "prompt_tokens": 620,
         "completion_tokens": 91
       },
-      "seconds": 0.307
+      "seconds": 0.294
     },
     "dae488a375e9e026546e554b22fd52be5ca0f49b88bea96652a9f467704a23cc": {
       "case": "i01-clean-usd",
@@ -171,7 +171,7 @@
         "prompt_tokens": 708,
         "completion_tokens": 233
       },
-      "seconds": 0.537
+      "seconds": 0.484
     },
     "8b59a9b29500d70ecdc647f5b66725407e93630a43fcfa73e5273941e54a6847": {
       "case": "i02-multipage",
@@ -230,7 +230,7 @@
         "prompt_tokens": 3909,
         "completion_tokens": 756
       },
-      "seconds": 1.849
+      "seconds": 1.87
     },
     "23732a68f917b24fc36e068701d50547ceb5e28fe247909188751136efcab465": {
       "case": "i03-scan-invoice",
@@ -265,7 +265,7 @@
         "prompt_tokens": 2159,
         "completion_tokens": 250
       },
-      "seconds": 1.477
+      "seconds": 10.825
     },
     "48adbbdff73ff255a50a7dea4211b666642c6e0b78386d651c0b86b70047af44": {
       "case": "i04-eur-no-po",
@@ -300,7 +300,7 @@
         "prompt_tokens": 745,
         "completion_tokens": 236
       },
-      "seconds": 12.756
+      "seconds": 0.602
     },
     "a604932da55a155853bd59ffd8ff8e42004e37b077ef25e6fac36c0b876b32ba": {
       "case": "i05-injection-invoice",
@@ -335,7 +335,7 @@
         "prompt_tokens": 738,
         "completion_tokens": 241
       },
-      "seconds": 0.523
+      "seconds": 0.498
     },
     "05ed3646118d58505af77638f9d7380d14e0bc3af4e46f5705d414b612ae2351": {
       "case": "i06-balance-due",
@@ -366,7 +366,7 @@
         "prompt_tokens": 768,
         "completion_tokens": 228
       },
-      "seconds": 0.615
+      "seconds": 0.565
     },
     "92ff9e6dce9e015051853606c697dd0e8145bffbcfba12060c47b189bd6211a6": {
       "case": "i07-tzs",
@@ -401,7 +401,87 @@
         "prompt_tokens": 747,
         "completion_tokens": 260
       },
-      "seconds": 0.651
+      "seconds": 0.638
+    },
+    "afb416a89499ea752fbc1af3d59a1a18e689bc066634322c708c0bc1db8f5896": {
+      "case": "q09-blurred-photo",
+      "failed": "The model's answer did not fit the schema.",
+      "usage": {
+        "prompt_tokens": 2164,
+        "completion_tokens": 91
+      },
+      "seconds": 0.618
+    },
+    "b1b03f72e59323c828c7e60a9215572c2d1b0606ae0bed9457a7219afe6d2c5f": {
+      "case": "q10-no-term",
+      "reading": {
+        "supplier": "Jebel Ali Power Systems LLC",
+        "title": "Generator maintenance and emergency cover",
+        "currency": "AED",
+        "amount": "6247.5",
+        "billing_period": "monthly",
+        "term_months": null,
+        "category": "Professional services",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 725,
+        "completion_tokens": 85
+      },
+      "seconds": 0.305
+    },
+    "ffc225d74855f51869fa5280861cb0568966f2570f61ebdc046f3553ffcdd7d9": {
+      "case": "q11-stamped-total",
+      "reading": {
+        "supplier": "Likasi Hydraulics & Hose SARL",
+        "title": "Hydraulic hose assemblies and fittings",
+        "currency": "USD",
+        "amount": "9632.64",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "Site equipment and supplies",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 2164,
+        "completion_tokens": 96
+      },
+      "seconds": 1.666
+    },
+    "3bbc8dad6ae03aa06a47799fe1d5c15602ebcb03fa53637b770cf0dd4f1dab21": {
+      "case": "i08-angled-glare",
+      "reading": {
+        "supplier": "Al Rashidiya Facility Services LLC",
+        "invoice_number": "ARS-INV-51875",
+        "currency": "AED",
+        "total": "9749.25",
+        "invoice_date": "2026-11-14",
+        "purchase_reference": "GL-00431",
+        "lines": [
+          {
+            "description": "Office cleaning, five days a week, November 2026",
+            "amount": "6800"
+          },
+          {
+            "description": "Deep clean of kitchen and washrooms",
+            "amount": "900"
+          },
+          {
+            "description": "Window cleaning, 22nd floor, inside and out",
+            "amount": "1200"
+          },
+          {
+            "description": "Consumables: soap, paper and bin liners",
+            "amount": "385"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 2159,
+        "completion_tokens": 257
+      },
+      "seconds": 1.019
     }
   }
 }

@@ -194,5 +194,73 @@
       "invoice_date": "2026-11-17",
       "purchase_reference": "GL-00205"
     }
+  },
+  {
+    "id": "q09-blurred-photo",
+    "kind": "quote",
+    "file": "q09-blurred-photo.png",
+    "what_it_tests": "A catering quote photographed in poor light and out of focus, so the supplier's name, the currency and the total are hard to make out.",
+    "expected": {
+      "supplier": "Musonoi Catering & Events SARL",
+      "currency": "USD",
+      "amount": "24768.32",
+      "billing_period": "none",
+      "term_months": null
+    },
+    "expect_unclear": [
+      "supplier",
+      "currency",
+      "amount"
+    ]
+  },
+  {
+    "id": "q10-no-term",
+    "kind": "quote",
+    "file": "q10-no-term.pdf",
+    "what_it_tests": "A monthly maintenance retainer that never says how many months it runs for, so the term must be left for a person rather than guessed.",
+    "expected": {
+      "supplier": "Jebel Ali Power Systems LLC",
+      "currency": "AED",
+      "amount": "6247.50",
+      "billing_period": "monthly",
+      "term_months": null
+    },
+    "expect_unclear": [
+      "term_months"
+    ]
+  },
+  {
+    "id": "q11-stamped-total",
+    "kind": "quote",
+    "file": "q11-stamped-total.png",
+    "what_it_tests": "A scanned quote where the supplier's company stamp is pressed across the grand total, so the figure can only be worked out from the lines above it.",
+    "expected": {
+      "supplier": "Likasi Hydraulics & Hose SARL",
+      "currency": "USD",
+      "amount": "9632.64",
+      "billing_period": "none",
+      "term_months": null
+    },
+    "expect_unclear": [
+      "amount"
+    ]
+  },
+  {
+    "id": "i08-angled-glare",
+    "kind": "invoice",
+    "file": "i08-angled-glare.png",
+    "what_it_tests": "An invoice photographed at an angle under a ceiling light, with glare washing out the invoice number and date.",
+    "expected": {
+      "supplier": "Al Rashidiya Facility Services LLC",
+      "invoice_number": "ARF-INV-31876",
+      "currency": "AED",
+      "total": "9749.25",
+      "invoice_date": "2026-11-14",
+      "purchase_reference": "GL-00431"
+    },
+    "expect_unclear": [
+      "invoice_number",
+      "invoice_date"
+    ]
   }
 ]

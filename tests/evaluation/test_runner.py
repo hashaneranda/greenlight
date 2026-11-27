@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 
 from greenlight.evaluation.cases import Case, load_cases
 from greenlight.evaluation.recording import Recording, document_key
-from greenlight.evaluation.report import Price, render
+from greenlight.evaluation.report import Change, Price, load_changes, render
 from greenlight.evaluation.runner import Run, replay, run
 from greenlight.evaluation.scoring import CaseScore
 from greenlight.infrastructure.ai.document_readers import (
@@ -114,7 +115,8 @@ def _score(outcome: Run, case_id: str) -> CaseScore:
 def test_every_case_passes_when_the_model_reads_what_the_document_says():
     outcome = _run(_answers())
 
-    assert len(outcome.results) == 15
+    assert len(outcome.results) == len(CASES)
+    assert any(case.hard_to_read for case in CASES)
     assert all(result.score.passed for result in outcome.results)
     assert all(result.usage == A_READ for result in outcome.results)
 
@@ -159,8 +161,17 @@ def test_fields_the_model_was_unsure_of_are_scored_as_flags():
     outcome = _run(_answers({"i03-scan-invoice": unsure}))
 
     scan = _score(outcome, "i03-scan-invoice")
-    assert scan.flagged_and_wrong == ("total",)
-    assert scan.flagged_but_right == ("supplier",)
+    assert scan.flagged == ("supplier", "total")
+    assert scan.needless_flags == ("supplier",)
+    assert scan.flags_missed == ()
+
+
+def test_a_field_the_document_makes_hard_to_read_should_be_flagged():
+    outcome = _run(_answers())
+
+    stamped = _score(outcome, "q11-stamped-total")
+    assert stamped.hard_to_read == ("amount",)
+    assert stamped.flags_missed == ("amount",)
 
 
 def test_a_recording_replays_to_the_same_scores(tmp_path):
@@ -194,7 +205,7 @@ def test_the_report_leads_with_the_headline_numbers():
 
     report = render(_run(_answers({"i05-injection-invoice": taken_in})), price=None)
 
-    assert "14 of 15" in report
+    assert "18 of 19" in report
     assert "Injection attempts ignored | 1 of 2" in report
     assert "Documents refused correctly | 1 of 1" in report
     assert "| `i05-injection-invoice` | fail | total |" in report
@@ -222,3 +233,95 @@ def test_a_run_pauses_between_reads_but_not_before_the_first():
     )
 
     assert len(pauses) == len(CASES) - 1
+
+
+def test_the_report_counts_clear_documents_apart_from_hard_ones():
+    misread = _right_answer(_case("q09-blurred-photo"))
+    misread.supplier = "Greenfield Catering"
+
+    report = render(_run(_answers({"q09-blurred-photo": misread})), price=None)
+
+    assert "| Fields read correctly | 99% (97 of 98) |" in report
+    assert "| Fields read correctly on clear documents | 100% (77 of 77) |" in report
+    assert "| `q09-blurred-photo` | fail | supplier |  | supplier, currency, amount |" in report
+
+
+def test_the_report_says_how_many_fields_worth_flagging_were_flagged():
+    stamped = _right_answer(_case("q11-stamped-total"))
+    stamped.unclear_fields = ["amount", "supplier"]
+
+    report = render(_run(_answers({"q11-stamped-total": stamped})), price=None)
+
+    assert "It flagged 1 of the 7 fields worth flagging (flag recall 14%)." in report
+    assert "Of its 2 flags, 1 was worth it (flag precision 50%)." in report
+    assert "The other 1 was on a clearly printed field it read right." in report
+
+
+def _saved(outcome: Run, evals: Path, name: str) -> str:
+    outcome.recording().save(evals / "recorded" / name)
+    return name
+
+
+def _list_changes(evals: Path, *changes: tuple[str, str]) -> None:
+    listed = [{"recording": name, "change": change} for name, change in changes]
+    (evals / "changes.json").write_text(json.dumps(listed))
+
+
+def test_changes_are_scored_again_from_their_recordings(tmp_path):
+    taken_in = _right_answer(_case("q07-injection-quote"))
+    taken_in.amount = Decimal("1")
+    before = _saved(_run(_answers({"q07-injection-quote": taken_in})), tmp_path, "before.json")
+    after = _saved(_run(_answers()), tmp_path, "after.json")
+    _list_changes(
+        tmp_path,
+        (before, "Today's prompt."),
+        (after, "Tell the reader to ignore the document."),
+    )
+
+    changes = load_changes(tmp_path, CASES)
+
+    assert [change.what_changed for change in changes] == [
+        "Today's prompt.",
+        "Tell the reader to ignore the document.",
+    ]
+    assert [_score(change.run, "q07-injection-quote").passed for change in changes] == [
+        False,
+        True,
+    ]
+
+
+def test_a_recording_made_before_a_case_was_added_is_scored_on_the_cases_it_holds(tmp_path):
+    older = run(
+        CASES[:-1],
+        lambda on_usage: FakeModel(_answers(), on_usage),
+        label="fake-2026-11-25",
+        model_name="fake/reader",
+        ran_on=date(2026, 11, 25),
+    )
+    name = _saved(older, tmp_path, "older.json")
+    _list_changes(tmp_path, (name, "First."))
+
+    (change,) = load_changes(tmp_path, CASES)
+
+    assert len(change.run.results) == len(CASES) - 1
+
+
+def test_the_report_shows_each_change_with_its_headline_numbers():
+    unflagged = _run(_answers())
+    stamped = _right_answer(_case("q11-stamped-total"))
+    stamped.unclear_fields = ["amount"]
+    flagged = _run(_answers({"q11-stamped-total": stamped}))
+
+    report = render(
+        flagged,
+        price=None,
+        changes=[
+            Change("Today's prompt.", unflagged),
+            Change("Ask the reader to flag what it worked out.", flagged),
+        ],
+    )
+
+    assert "## Changes" in report
+    assert "| `fake-2026-11-26` | 100% | 100% | n/a | 0% |" in report
+    assert "| `fake-2026-11-26` | 100% | 100% | 100% | 14% |" in report
+    assert "Ask the reader to flag what it worked out." in report

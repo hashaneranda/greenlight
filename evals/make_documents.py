@@ -15,7 +15,7 @@ from typing import Literal
 
 import pypdfium2
 from fpdf import FPDF, FontFace
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 EVALS = Path(__file__).parent
 DOCUMENTS = EVALS / "documents"
@@ -155,6 +155,7 @@ class Paper:
     term_months: int | None = None
     footer_note: str = ""
     whisper: str = ""
+    seal: tuple[str, ...] = ()
 
     @property
     def subtotal(self) -> Decimal:
@@ -291,11 +292,18 @@ def totals(pdf: FPDF, paper: Paper, *, boxed: bool) -> None:
         pdf.set_fill_color(242)
         pdf.rect(x, pdf.get_y(), 92, 7 * len(paper.totals()) + 2, style="F")
         pdf.ln(1)
+    total_y = None
     for label, amount, strong in paper.totals():
+        if strong and total_y is None:
+            total_y = pdf.get_y()
         pdf.set_x(x)
         pdf.set_font(style="B" if strong else "", size=11 if strong else 9.5)
         pdf.cell(50, 7, label, align="R")
         pdf.cell(40, 7, amount, align="R", new_x="LMARGIN", new_y="NEXT")
+    if paper.seal:
+        after_totals = pdf.get_y()
+        seal(pdf, paper.seal, x + 77, total_y + 3.5)
+        pdf.set_y(after_totals)
     if paper.term_months:
         contract = paper.money(paper.total * paper.term_months)
         pdf.set_font(style="I", size=9)
@@ -308,6 +316,27 @@ def totals(pdf: FPDF, paper: Paper, *, boxed: bool) -> None:
             new_x="LMARGIN",
             new_y="NEXT",
         )
+
+
+def seal(pdf: FPDF, lines: Sequence[str], x: float, y: float) -> None:
+    """The supplier's company stamp, pressed in blue ink across the figure it sits on."""
+    ink = (38, 62, 150)
+    pdf.set_draw_color(*ink)
+    pdf.set_text_color(*ink)
+    with pdf.local_context(fill_opacity=0.93, stroke_opacity=0.9), pdf.rotation(14, x, y):
+        pdf.set_fill_color(*ink)
+        pdf.set_line_width(1.1)
+        pdf.ellipse(x - 17, y - 17, 34, 34)
+        pdf.set_line_width(0.5)
+        pdf.ellipse(x - 14, y - 14, 28, 28)
+        pdf.ellipse(x - 9, y - 4, 18, 8, style="F")
+        pdf.set_font(style="B", size=6.5)
+        for number, line in enumerate(lines):
+            pdf.set_xy(x - 13, y - 11 + number * 7.5)
+            pdf.cell(26, 3, line, align="C")
+    pdf.set_line_width(0.2)
+    pdf.set_draw_color(0)
+    pdf.set_text_color(0)
 
 
 def closing(pdf: FPDF, paper: Paper) -> None:
@@ -444,7 +473,8 @@ class Case:
     what_it_tests: str
     document: Paper | Letter
     draw: Callable[..., FPDF]
-    scanned: bool = False
+    captured: Callable[[bytes], bytes] | None = None
+    expect_unclear: tuple[str, ...] = ()
 
     @property
     def kind(self) -> str:
@@ -452,7 +482,7 @@ class Case:
 
     @property
     def file(self) -> str:
-        return f"{self.id}.png" if self.scanned else f"{self.id}.pdf"
+        return f"{self.id}.png" if self.captured else f"{self.id}.pdf"
 
     def entry(self) -> dict:
         entry = {
@@ -481,16 +511,54 @@ class Case:
                 "invoice_date": paper.issued.isoformat(),
                 "purchase_reference": paper.reference,
             }
-        return entry | {"expected": expected}
+        entry["expected"] = expected
+        if self.expect_unclear:
+            entry["expect_unclear"] = list(self.expect_unclear)
+        return entry
 
 
 def as_scan(pdf: bytes) -> bytes:
     page = pypdfium2.PdfDocument(pdf)[0].render(scale=1.6).to_pil().convert("L")
     tilted = page.rotate(2, expand=True, fillcolor="white", resample=Image.Resampling.BICUBIC)
     grain = Image.effect_noise(tilted.size, 60)
-    scan = Image.blend(tilted, grain, 0.07).filter(ImageFilter.GaussianBlur(0.5))
+    return _png(Image.blend(tilted, grain, 0.07).filter(ImageFilter.GaussianBlur(0.5)))
+
+
+def as_phone_photo(pdf: bytes) -> bytes:
+    """A quick photo from across a desk: small, out of focus and darker at one corner."""
+    page = pypdfium2.PdfDocument(pdf)[0].render(scale=0.7).to_pil().convert("RGB")
+    tilted = page.rotate(-4, expand=True, fillcolor=(96, 84, 70), resample=Image.Resampling.BICUBIC)
+    width, height = tilted.size
+    light = Image.radial_gradient("L").resize((width * 2, height * 2)).crop((0, 0, width, height))
+    shadow = Image.new("RGB", tilted.size, (60, 52, 44))
+    photo = Image.blend(tilted, Image.composite(shadow, tilted, light), 0.5)
+    return _png(photo.filter(ImageFilter.GaussianBlur(2.6)))
+
+
+def as_angled_photo(pdf: bytes) -> bytes:
+    """A photo taken at an angle under an office light that leaves a glare across the details."""
+    page = pypdfium2.PdfDocument(pdf)[0].render(scale=1.3).to_pil().convert("RGB")
+    width, height = page.size
+    glare = Image.new("L", page.size, 0)
+    over_details = (width * 0.5, height * 0.06, width * 0.97, height * 0.17)
+    ImageDraw.Draw(glare).ellipse(over_details, fill=255)
+    glare = glare.filter(ImageFilter.GaussianBlur(width // 30))
+    lit = Image.composite(Image.new("RGB", page.size, (255, 255, 252)), page, glare)
+    toned = Image.blend(lit, Image.new("RGB", page.size, (200, 196, 186)), 0.15)
+    lean = width // 9
+    angled = toned.transform(
+        page.size,
+        Image.Transform.QUAD,
+        (0, 0, -lean, height, width + lean, height, width, 0),
+        resample=Image.Resampling.BICUBIC,
+        fillcolor=(92, 88, 82),
+    )
+    return _png(angled.filter(ImageFilter.GaussianBlur(0.8)))
+
+
+def _png(image: Image.Image) -> bytes:
     buffer = io.BytesIO()
-    scan.save(buffer, format="PNG", optimize=True)
+    image.save(buffer, format="PNG", optimize=True)
     return buffer.getvalue()
 
 
@@ -698,7 +766,7 @@ CASES = [
             terms="Livraison sur site sous 10 jours. Paiement à 30 jours fin de mois.",
         ),
         ruled,
-        scanned=True,
+        captured=as_scan,
     ),
     Case(
         "q06-two-totals",
@@ -873,7 +941,7 @@ CASES = [
             terms="Payment within 30 days. Goods remain our property until paid for.",
         ),
         banded,
-        scanned=True,
+        captured=as_scan,
     ),
     Case(
         "i04-eur-no-po",
@@ -996,6 +1064,139 @@ CASES = [
         ),
         ruled,
     ),
+    Case(
+        "q09-blurred-photo",
+        "A catering quote photographed in poor light and out of focus, so the supplier's "
+        "name, the currency and the total are hard to make out.",
+        Paper(
+            kind="quote",
+            supplier=Supplier(
+                "Musonoi Catering & Events SARL",
+                ("Avenue Mwilu 17, Quartier Musonoi", "Kolwezi, Lualaba, RDC"),
+                "RCCM KZI/RCCM/19-B-0458 - Id. Nat. 6-118-N40273P",
+                "Banque Commerciale du Lualaba, compte n° 00018-27410-0388215-41 (USD).",
+                (130, 60, 40),
+            ),
+            number="MCE-DV-0611",
+            issued=date(2026, 11, 21),
+            bill_to=KOLWEZI_SITE,
+            currency="USD",
+            lines=(
+                Line("Repas complets, équipe de site, par personne et par jour", 1240, Decimal(14)),
+                Line("Paniers repas pour les équipes de forage", 380, Decimal("6.50")),
+                Line("Eau potable, bonbonnes de 18,9 L", 160, Decimal("4.20")),
+                Line("Tentes et tables, réunion de fin d'année", 1, Decimal("850.00")),
+            ),
+            tax=DRC_TVA,
+            wording=FRENCH,
+            more_details=(("Validité", "15 jours"),),
+            terms="Prestation de décembre 2026. Toute variation d'effectif de plus de 10 % est "
+            "facturée au prorata. Paiement à 15 jours.",
+        ),
+        banded,
+        captured=as_phone_photo,
+        expect_unclear=("supplier", "currency", "amount"),
+    ),
+    Case(
+        "q10-no-term",
+        "A monthly maintenance retainer that never says how many months it runs for, so the "
+        "term must be left for a person rather than guessed.",
+        Paper(
+            kind="quote",
+            supplier=Supplier(
+                "Jebel Ali Power Systems LLC",
+                ("Plot S30214, Jebel Ali Free Zone South", "Dubai, United Arab Emirates"),
+                "TRN 100663018200003",
+                "Jebel Ali Power Systems LLC, Gulf Merchant Bank, "
+                "IBAN AE70 0410 0000 3663 0182 004.",
+                (180, 90, 20),
+            ),
+            number="JAPS-Q-26-0412",
+            issued=date(2026, 11, 23),
+            bill_to=HEAD_OFFICE,
+            currency="AED",
+            lines=(
+                Line("Planned maintenance, two standby generators, per month", 1, Decimal(3800)),
+                Line("UPS battery inspection and load test, per month", 1, Decimal("950.00")),
+                Line("24-hour emergency call-out cover, per month", 1, Decimal("1200.00")),
+            ),
+            tax=UAE_VAT,
+            wording=replace(ENGLISH, total="Total per month"),
+            more_details=(("Valid until", "23 December 2026"),),
+            billing_period="monthly",
+            terms="Service starts on the date agreed with the client and is invoiced monthly in "
+            "advance. Parts and consumables are charged separately at list price. Call-outs are "
+            "answered within four hours, day or night.",
+        ),
+        classic,
+        expect_unclear=("term_months",),
+    ),
+    Case(
+        "q11-stamped-total",
+        "A scanned quote where the supplier's company stamp is pressed across the grand total, "
+        "so the figure can only be worked out from the lines above it.",
+        Paper(
+            kind="quote",
+            supplier=Supplier(
+                "Likasi Hydraulics & Hose SARL",
+                ("Avenue Lumumba 112, Commune de Dilala", "Kolwezi, Lualaba, RDC"),
+                "RCCM KZI/RCCM/17-B-0291 - Id. Nat. 6-118-N29944H",
+                "Pay to Likasi Hydraulics & Hose SARL, Banque Commerciale du Lualaba, "
+                "account 00018-27410-0177302-63 (USD).",
+                (20, 95, 70),
+            ),
+            number="LHH-Q-2026-207",
+            issued=date(2026, 11, 19),
+            bill_to=KOLWEZI_SITE,
+            currency="USD",
+            lines=(
+                Line('Hydraulic hose assembly, 1" 4-wire, made to length', 24, Decimal("186.00")),
+                Line('Quick-release couplings, flat face, 1"', 48, Decimal("42.50")),
+                Line("Hose guard and clamps, per assembly", 24, Decimal("18.75")),
+                Line("On-site fitting on two excavators", 1, Decimal("1350.00")),
+            ),
+            tax=DRC_TVA,
+            more_details=(("Valid until", "19 December 2026"),),
+            terms="Delivery to site within 7 days of order. Payment 30 days from invoice.",
+            seal=("LIKASI HYDRAULICS", "KOLWEZI", "SARL"),
+        ),
+        classic,
+        captured=as_scan,
+        expect_unclear=("amount",),
+    ),
+    Case(
+        "i08-angled-glare",
+        "An invoice photographed at an angle under a ceiling light, with glare washing out the "
+        "invoice number and date.",
+        Paper(
+            kind="invoice",
+            supplier=Supplier(
+                "Al Rashidiya Facility Services LLC",
+                ("Office 12, Al Rashidiya Commercial Centre", "Dubai, United Arab Emirates"),
+                "TRN 100587342600003",
+                "Al Rashidiya Facility Services LLC, Emirates Trade Bank, "
+                "IBAN AE38 0260 0010 5873 4260 001.",
+                (40, 100, 120),
+            ),
+            number="ARF-INV-31876",
+            issued=date(2026, 11, 14),
+            bill_to=HEAD_OFFICE,
+            currency="AED",
+            lines=(
+                Line("Office cleaning, five days a week, November 2026", 1, Decimal("6800.00")),
+                Line("Deep clean of kitchen and washrooms", 2, Decimal("450.00")),
+                Line("Window cleaning, 22nd floor, inside and out", 1, Decimal("1200.00")),
+                Line("Consumables: soap, paper and bin liners", 1, Decimal("385.00")),
+            ),
+            tax=UAE_VAT,
+            reference="GL-00431",
+            more_details=(("Due date", "14 December 2026"),),
+            terms="Payment due within 30 days. Please quote the invoice number with your payment.",
+        ),
+        classic,
+        captured=as_angled_photo,
+        expect_unclear=("invoice_number", "invoice_date"),
+    ),
 ]
 
 
@@ -1005,7 +1206,7 @@ def main() -> None:
         pdf = case.draw(case.document)
         pdf.set_creation_date(datetime(2026, 11, 26))
         content = bytes(pdf.output())
-        (DOCUMENTS / case.file).write_bytes(as_scan(content) if case.scanned else content)
+        (DOCUMENTS / case.file).write_bytes(case.captured(content) if case.captured else content)
     cases = [case.entry() for case in CASES]
     (EVALS / "cases.json").write_text(json.dumps(cases, indent=2, ensure_ascii=False) + "\n")
     print(f"Wrote {len(cases)} cases to {EVALS / 'cases.json'}")

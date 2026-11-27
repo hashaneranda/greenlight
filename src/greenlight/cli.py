@@ -11,7 +11,7 @@ from openai import OpenAI
 from greenlight.config import get_settings
 from greenlight.evaluation.cases import Case, load_cases
 from greenlight.evaluation.recording import Recording
-from greenlight.evaluation.report import load_price, render, summary
+from greenlight.evaluation.report import load_changes, load_price, render, summary
 from greenlight.evaluation.runner import Run, replay, run
 from greenlight.infrastructure.ai.document_readers import ModelUnavailable
 from greenlight.infrastructure.ai.groq_model import GROQ_URL, GroqModel
@@ -58,7 +58,8 @@ def evaluate(record: bool, replay_from: Path | None) -> None:
     if record:
         outcome.recording().save(evals / "recorded" / f"{outcome.label}.json")
     price = load_price(evals / "pricing.json", outcome.model_name)
-    (root / "docs" / "ai-evaluation.md").write_text(render(outcome, price))
+    changes = load_changes(evals, cases)
+    (root / "docs" / "ai-evaluation.md").write_text(render(outcome, price, changes))
     print(summary(outcome))
 
 
