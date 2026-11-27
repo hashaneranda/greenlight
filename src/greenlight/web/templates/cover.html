@@ -1,20 +1,13 @@
 {% extends "base.html" %}
+{% from "partials/macros.html" import empty_state %}
 {% block title %}Cover{% endblock %}
-{% block content %}
-<div class="page-head">
-  <div>
-    <h1>Going away?</h1>
-    <p>Pick one colleague to approve for you while you're gone. Their decisions are recorded as made on your behalf, and they can never approve their own requests.</p>
-  </div>
-</div>
-
-<div class="two-up">
+{% macro cover_form() -%}
   <form class="sheet" method="post" action="/cover">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="sheet-head"><h2>Set up cover</h2></div>
     <div class="body form-body">
       <div class="field">
-        <label for="covering_id">Who approves for you</label>
+        <label for="covering_id">Who approves for you <span class="hint">They see everything waiting for you, and anything new, until you're back.</span></label>
         <select id="covering_id" name="covering_id" required>
           <option value="">Choose a colleague</option>
           {% for person in colleagues %}<option value="{{ person.id }}">{{ person.name }}, {{ person.job_title }}</option>{% endfor %}
@@ -28,32 +21,57 @@
       <button class="primary block form-foot" type="submit">Set up cover</button>
     </div>
   </form>
-
+{%- endmacro %}
+{% macro cover_status() -%}
   <div>
-    <section class="sheet">
-      <div class="sheet-head"><h2>Covering for you</h2></div>
+    <section class="sheet" aria-labelledby="for-you-heading">
+      <div class="sheet-head"><h2 id="for-you-heading">Covering for you</h2></div>
       {% if arranged %}
       <ul class="rows">
         {% for cover in arranged %}
-        <li class="row">
-          <span class="title">{{ lookups.person(cover.covering_id).name }}</span>
-          <form method="post" action="/cover/{{ cover.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="link small" type="submit">Cancel</button></form>
+        {% set colleague = lookups.person(cover.covering_id) %}
+        <li class="row person">
+          <span class="title">{{ colleague.name }}</span>
+          <span class="avatar" aria-hidden="true">{{ colleague.initials }}</span>
           <span class="sub">{{ cover.starts_on|day }} to {{ cover.ends_on|day }}{% if cover.note %}. {{ cover.note }}{% endif %}</span>
+          <form class="more" method="post" action="/cover/{{ cover.id }}/cancel"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="link small" type="submit">Cancel this cover</button></form>
+          <span class="end">{% if cover.starts_on <= today %}<span class="tag go">Covering now</span>{% else %}<span class="tag">Starts {{ cover.starts_on|day }}</span>{% endif %}</span>
         </li>
         {% endfor %}
       </ul>
-      {% else %}<p class="empty">Nobody yet. Set it up before you travel so nothing waits for you.</p>{% endif %}
+      {% else %}
+      {{ empty_state("Nobody covers for you", "Set it up before you travel, so nothing waits for you while you're away.") }}
+      {% endif %}
     </section>
-    <section class="sheet">
-      <div class="sheet-head"><h2>You're covering for</h2></div>
+    <section class="sheet" aria-labelledby="by-you-heading">
+      <div class="sheet-head quiet"><h2 id="by-you-heading">You're covering for</h2></div>
       {% if providing %}
       <ul class="rows">
         {% for cover in providing %}
-        <li class="row"><span class="title">{{ lookups.person(cover.absent_id).name }}</span><span class="sub end">until {{ cover.ends_on|day }}</span></li>
+        {% set colleague = lookups.person(cover.absent_id) %}
+        <li class="row person">
+          <span class="title">{{ colleague.name }}</span>
+          <span class="avatar" aria-hidden="true">{{ colleague.initials }}</span>
+          <span class="sub">Until {{ cover.ends_on|day }}{% if cover.note %}. {{ cover.note }}{% endif %}</span>
+          <span class="end"><span class="tag go">Covering now</span></span>
+        </li>
         {% endfor %}
       </ul>
-      {% else %}<p class="empty">Nobody right now.</p>{% endif %}
+      {% else %}
+      <p class="small muted quiet-empty">Nobody right now. When a colleague asks you to approve while they're away, they show up here.</p>
+      {% endif %}
     </section>
   </div>
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Going away?</h1>
+    <p>Pick one colleague to approve for you while you're gone. Their decisions are recorded as made on your behalf, and they can never approve their own requests.</p>
+  </div>
+</div>
+
+<div class="two-up">
+{% if arranged or providing %}{{ cover_status() }}{{ cover_form() }}{% else %}{{ cover_form() }}{{ cover_status() }}{% endif %}
 </div>
 {% endblock %}
