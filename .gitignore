@@ -13,3 +13,5 @@ node_modules/
 *.whl
 build/
 dist/
+.DS_Store
+.playwright-mcp/
