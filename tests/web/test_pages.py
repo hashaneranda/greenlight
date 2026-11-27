@@ -305,5 +305,5 @@ def test_an_address_that_does_not_exist_gets_the_greenlight_error_page(client):
     response = client.get("/nowhere")
 
     assert response.status_code == 404
-    assert "There's no page here." in response.text
+    assert "no page here" in response.text
     assert "Back to home" in response.text
