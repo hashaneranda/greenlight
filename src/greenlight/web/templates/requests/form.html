@@ -140,7 +140,7 @@
     <label class="check"><input type="checkbox" id="recurring" name="recurring" value="yes" {% if values.recurring == "yes" %}checked{% endif %}><span>It repeats, like a subscription or retainer{{ check_this("billing_period") }}<span class="hint">It's approved once for the whole contract, so nobody raises it again every month.</span></span></label>
     <div class="field-row recurring-fields">
       <div class="field">
-        <label for="billing_period">Paid</label>
+        <label for="billing_period">Paid{{ check_this("billing_period") }}</label>
         <select id="billing_period" name="billing_period"{{ unclear_if("billing_period") }}>
           {% for value, label in [("monthly", "Monthly"), ("quarterly", "Quarterly"), ("annually", "Annually")] %}
           <option value="{{ value }}" {% if values.billing_period == value %}selected{% endif %}>{{ label }}</option>
@@ -148,8 +148,8 @@
         </select>
       </div>
       <div class="field">
-        <label for="term_months">For how many months</label>
-        <input id="term_months" name="term_months" inputmode="numeric" value="{{ values.term_months }}" placeholder="12">
+        <label for="term_months">For how many months{{ check_this("term_months") }}</label>
+        <input id="term_months" name="term_months" inputmode="numeric" value="{{ values.term_months }}" placeholder="12"{{ unclear_if("term_months") }}>
       </div>
     </div>
   </div>
