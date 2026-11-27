@@ -130,7 +130,7 @@ def _values_from(draft: QuoteDraft) -> dict:
     return {
         "title": reading.title,
         "supplier": reading.supplier,
-        "amount": f"{reading.amount:f}",
+        "amount": "" if reading.amount is None else f"{reading.amount:f}",
         "currency": reading.currency,
         "recurring": "yes" if reading.is_recurring else "",
         "billing_period": reading.billing_period or "",

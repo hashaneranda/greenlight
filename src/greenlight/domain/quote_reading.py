@@ -11,7 +11,7 @@ class QuoteReading:
     supplier: str
     title: str
     currency: str
-    amount: Decimal
+    amount: Decimal | None
     billing_period: BillingPeriod | None = None
     term_months: int | None = None
     category_name: str = ""
