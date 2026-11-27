@@ -3,8 +3,10 @@ from pathlib import Path
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from greenlight.application.errors import NotFound
@@ -57,6 +59,12 @@ def create_app(settings: Settings | None = None, container: Container | None = N
     @app.exception_handler(NotFound)
     async def not_found(request: Request, error: NotFound):
         return render(request, "error.html", status_code=404, message=str(error))
+
+    @app.exception_handler(HTTPException)
+    async def no_such_page(request: Request, error: HTTPException):
+        if error.status_code != 404:
+            return await http_exception_handler(request, error)
+        return render(request, "error.html", status_code=404, message="There's no page here.")
 
     static = Path(__file__).parent / "static"
     app.mount("/static", StaticFiles(directory=static), name="static")
