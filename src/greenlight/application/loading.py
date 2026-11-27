@@ -5,7 +5,7 @@ from greenlight.application.errors import NotFound
 from greenlight.application.ports import UnitOfWork
 from greenlight.domain.errors import InvalidRequest, NotPermitted
 from greenlight.domain.people import Employee
-from greenlight.domain.spend_request import SpendRequest
+from greenlight.domain.spend_request import RequestStatus, SpendRequest
 
 
 def active_person(uow: UnitOfWork, employee_id: UUID) -> Employee:
@@ -22,6 +22,11 @@ def request_by_reference(
     if request is None:
         raise NotFound(f"No request {reference}.")
     return request
+
+
+def approvals_waiting_on(uow: UnitOfWork, approver: Employee) -> list[SpendRequest]:
+    pending = uow.requests.with_status(RequestStatus.PENDING)
+    return [request for request in pending if request.is_waiting_on(approver)]
 
 
 def usd_rate(uow: UnitOfWork, currency: str) -> Decimal:

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/icons.html" import icon %}
+{% block title %}People{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>People</h1>
+    <p>Everyone who can sign in to Greenlight, who they report to, and what they can approve. Every change goes in the audit log.</p>
+  </div>
+  <div class="actions keep">
+    <a class="button" href="/manage/people/import">Import from HR</a>
+    <a class="button primary" href="/manage/people/new">{{ icon("plus") }}Add person</a>
+  </div>
+</div>
+
+<form class="filters" method="get" action="/manage/people" role="search">
+  <div class="search">
+    {{ icon("search") }}
+    <label class="visually-hidden" for="q">Search</label>
+    <input id="q" name="q" type="search" value="{{ q }}" placeholder="Search name, email or job title">
+  </div>
+  <button type="submit">Search</button>
+</form>
+
+<section class="sheet">
+  {% if people %}
+  <ul class="rows">
+    {% for person in people %}
+    {% set manager = lookups.person(person.manager_id) %}
+    <li>
+      <a class="row" href="/manage/people/{{ person.id }}">
+        <span class="title">{{ person.name }}</span>
+        <span class="sub end">{% if person.is_active %}{% for role, (label, _) in roles.items() if role in person.roles %}{{ label }}{{ ", " if not loop.last }}{% endfor %}{% else %}<span class="status-text">Left</span>{% endif %}</span>
+        <span class="sub">{{ person.job_title or person.email }}{% if manager %}, reports to {{ manager.name }}{% endif %}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty"><strong>Nobody matches</strong>Try part of their name, email or job title.</p>
+  {% endif %}
+</section>
+{% endblock %}

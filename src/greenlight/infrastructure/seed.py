@@ -3,14 +3,14 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import exists, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from greenlight.application.use_cases import SpendApprovals, Upload
 from greenlight.domain.catalog import Category, Tag, TagKind
 from greenlight.domain.money import Money
 from greenlight.domain.people import Department, Employee, Role, Site
-from greenlight.domain.spend_request import BillingPeriod, SpendDetails
+from greenlight.domain.spend_request import BillingPeriod, SpendDetails, StepStatus
 from greenlight.infrastructure.clock import SystemClock
 from greenlight.infrastructure.persistence import tables
 
@@ -50,7 +50,25 @@ def seed_demo(session_factory: sessionmaker[Session], approvals: SpendApprovals)
         session.commit()
 
     _sample_requests(approvals, people, categories, tags)
+    with session_factory() as session:
+        _leave_unread_only_what_is_waiting(session)
+        session.commit()
     return True
+
+
+def _leave_unread_only_what_is_waiting(session: Session) -> None:
+    """The demo's history has already been seen; what still needs someone has not."""
+    notifications, steps = tables.notifications, tables.approval_steps
+    still_waiting = exists().where(
+        steps.c.request_id == notifications.c.request_id,
+        steps.c.approver_id == notifications.c.recipient_id,
+        steps.c.status == StepStatus.PENDING,
+    )
+    session.execute(
+        update(notifications)
+        .where(notifications.c.read_at.is_(None), ~still_waiting)
+        .values(read_at=SystemClock().now())
+    )
 
 
 def _organisation(session: Session) -> dict[str, Employee]:

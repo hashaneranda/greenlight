@@ -1,11 +1,21 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from greenlight.application.loading import active_person, request_by_reference
-from greenlight.application.ports import AuditEntry, Clock, UnitOfWork
+from greenlight.application.loading import (
+    active_person,
+    approvals_waiting_on,
+    request_by_reference,
+)
+from greenlight.application.ports import (
+    AuditEntry,
+    Clock,
+    OutgoingNotification,
+    RateRow,
+    UnitOfWork,
+)
 from greenlight.domain.catalog import Category, Tag, TagKind
 from greenlight.domain.cover import Cover
 from greenlight.domain.errors import NotPermitted
@@ -18,17 +28,19 @@ from greenlight.domain.learning import (
     send_back_lessons,
     suggest_limits,
 )
-from greenlight.domain.people import Department, Employee
+from greenlight.domain.people import Department, Employee, Site
 from greenlight.domain.spend_request import RequestStatus, SpendRequest
 from greenlight.domain.visibility import can_view
 
 ZERO = Decimal("0")
+RATE_STALE_AFTER = timedelta(days=35)
 
 
 @dataclass
 class Lookups:
     people: dict[UUID, Employee]
     departments: dict[UUID, Department]
+    sites: dict[UUID, Site]
     categories: dict[UUID, Category]
     tags: dict[UUID, Tag]
 
@@ -70,6 +82,23 @@ class RulesView:
     limits: list[CooLimit]
     suggestions: list[LimitSuggestion]
     can_change: bool
+
+
+@dataclass(frozen=True)
+class RateView:
+    rate: RateRow
+    is_stale: bool
+
+
+@dataclass(frozen=True)
+class InboxItem:
+    subject: str
+    body: str
+    reference: str | None
+    created_at: datetime
+    channel: str
+    delivery_error: str
+    is_new: bool
 
 
 @dataclass
@@ -143,6 +172,24 @@ class SpendQueries:
         with self._unit_of_work() as uow:
             return uow.people.active()
 
+    def directory(self, search: str = "") -> list[Employee]:
+        """Everyone who has ever been in Greenlight, people still here first."""
+        needle = search.strip().lower()
+        with self._unit_of_work() as uow:
+            return sorted(
+                (
+                    p
+                    for p in uow.people.all()
+                    if needle in f"{p.name} {p.email} {p.job_title}".lower()
+                ),
+                key=lambda p: (not p.is_active, p.name),
+            )
+
+    def approvals_waiting_on(self, person_id: UUID) -> list[SpendRequest]:
+        with self._unit_of_work() as uow:
+            person = uow.people.get(person_id)
+            return approvals_waiting_on(uow, person) if person else []
+
     def lookups(self) -> Lookups:
         with self._unit_of_work() as uow:
             return _lookups(uow)
@@ -156,6 +203,14 @@ class SpendQueries:
                 (t for t in uow.catalog.tags() if t.is_active), key=lambda t: (t.kind, t.name)
             )
             return categories, tags, uow.catalog.currencies()
+
+    def rates_view(self) -> list[RateView]:
+        now = self._clock.now()
+        with self._unit_of_work() as uow:
+            return [
+                RateView(rate, now - rate.updated_at > RATE_STALE_AFTER)
+                for rate in uow.catalog.rates()
+            ]
 
     def waiting_for(self, viewer_id: UUID) -> list[SpendRequest]:
         with self._unit_of_work() as uow:
@@ -303,6 +358,18 @@ class SpendQueries:
                 raise NotPermitted("The audit log is for finance and admins.")
             return list(reversed(uow.audit.all()))
 
+    def inbox(self, user_id: UUID) -> list[InboxItem]:
+        with self._unit_of_work() as uow:
+            notifications = uow.outbox.for_recipient(user_id)
+            references = uow.requests.references(
+                {n.request_id for n in notifications if n.request_id}
+            )
+            return [_inbox_item(n, references) for n in notifications]
+
+    def unread_count(self, user_id: UUID) -> int:
+        with self._unit_of_work() as uow:
+            return uow.outbox.unread_count(user_id)
+
     def _context(self, uow: UnitOfWork, viewer_id: UUID) -> _ViewerContext:
         today = self._clock.now().date()
         viewer = active_person(uow, viewer_id)
@@ -325,10 +392,23 @@ def _waiting(
     return sorted(waiting, key=lambda r: r.pending_step.activated_at)
 
 
+def _inbox_item(notification: OutgoingNotification, references: dict[UUID, str]) -> InboxItem:
+    return InboxItem(
+        subject=notification.subject,
+        body=notification.body,
+        reference=references.get(notification.request_id),
+        created_at=notification.created_at,
+        channel=notification.channel,
+        delivery_error=notification.delivery_error,
+        is_new=notification.read_at is None,
+    )
+
+
 def _lookups(uow: UnitOfWork) -> Lookups:
     return Lookups(
         people={p.id: p for p in uow.people.all()},
         departments={d.id: d for d in uow.people.departments()},
+        sites={s.id: s for s in uow.people.sites()},
         categories={c.id: c for c in uow.catalog.categories()},
         tags={t.id: t for t in uow.catalog.tags()},
     )

@@ -49,6 +49,30 @@ def test_a_request_far_above_what_the_category_usually_costs_is_unusual():
     assert precedent.is_unusually_high
 
 
+def test_the_suppliers_own_history_outranks_the_category_average():
+    company = build_company()
+    cheap = [
+        approved(company, company.general, amount, supplier="Other Co")
+        for amount in ("800", "1000", "1200")
+    ]
+    last_time = approved(company, company.general, "16500", supplier="Katanga Power")
+    new = submitted(company, company.sam, company.general, "18200", supplier="Katanga Power")
+
+    precedent = precedent_for(new, [*cheap, last_time, new])
+
+    assert precedent.supplier_usd == Decimal("16500")
+    assert precedent.times_supplier == Decimal("1.1")
+    assert not precedent.is_unusually_high
+
+
+def test_a_big_jump_on_the_same_supplier_is_unusual():
+    company = build_company()
+    last_time = approved(company, company.general, "1000", supplier="Katanga Power")
+    new = submitted(company, company.sam, company.general, "3000", supplier="Katanga Power")
+
+    assert precedent_for(new, [last_time, new]).is_unusually_high
+
+
 def test_too_little_history_says_nothing_about_typical_cost():
     company = build_company()
     history = [approved(company, company.general, "800")]

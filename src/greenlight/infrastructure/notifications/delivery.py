@@ -14,6 +14,12 @@ from greenlight.infrastructure.persistence import tables
 
 log = logging.getLogger(__name__)
 MAX_ATTEMPTS = 5
+CHANNEL_NAMES = {
+    (): "logged",
+    ("email",): "email",
+    ("teams",): "teams",
+    ("email", "teams"): "email and Teams",
+}
 
 
 class NotificationSender:
@@ -58,22 +64,24 @@ class NotificationSender:
         teams_webhook = self._settings.teams_webhook_url.get_secret_value()
         channels = []
         if self._settings.smtp_host:
-            channels.append(lambda: self._email(subject, body, recipient))
+            channels.append(("email", lambda: self._email(subject, body, recipient)))
         if teams_webhook:
-            channels.append(lambda: self._post_to_teams(teams_webhook, recipient, link))
+            channels.append(("teams", lambda: self._post_to_teams(teams_webhook, recipient, link)))
         if not channels:
             log.info("Notification to %s: %s", recipient.email, notification.subject)
 
-        errors = []
-        for send in channels:
+        sent, errors = [], []
+        for name, send in channels:
             try:
                 send()
+                sent.append(name)
             except (OSError, smtplib.SMTPException, httpx.HTTPError) as error:
                 log.warning("Notification %s failed on one channel: %s", notification.id, error)
                 errors.append(str(error))
 
         notification.delivery_error = "; ".join(errors)[:500]
-        if len(errors) < len(channels) or not channels:
+        if sent or not channels:
+            notification.channel = CHANNEL_NAMES[tuple(sent)]
             notification.delivered_at = SystemClock().now()
 
     def _email(self, subject: str, body: str, recipient: Employee) -> None:

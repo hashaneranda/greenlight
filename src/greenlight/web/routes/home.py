@@ -23,6 +23,14 @@ def home(request: Request, user: CurrentUser):
     )
 
 
+@router.get("/inbox")
+def inbox(request: Request, user: CurrentUser):
+    container = container_of(request)
+    items = container.queries.inbox(user.id)
+    container.approvals.mark_inbox_read(user.id)
+    return render(request, "inbox.html", items=items)
+
+
 @router.get("/insights")
 def insights(request: Request, user: CurrentUser):
     queries = container_of(request).queries

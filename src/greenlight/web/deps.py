@@ -21,8 +21,10 @@ def container_of(request: Request):
 
 
 def render(request: Request, template: str, status_code: int = 200, **context):
-    context.setdefault("user", getattr(request.state, "user", None))
+    user = context.setdefault("user", getattr(request.state, "user", None))
     context.setdefault("flash", request.session.pop("flash", None))
+    if user:
+        context.setdefault("unread", container_of(request).queries.unread_count(user.id))
     return TEMPLATES.TemplateResponse(
         request,
         template,
@@ -64,4 +66,5 @@ def _when(moment: datetime | None) -> str:
 TEMPLATES.env.filters["usd"] = _usd
 TEMPLATES.env.filters["when"] = _when
 TEMPLATES.env.filters["sentence"] = lambda text: text[:1].upper() + text[1:]
+TEMPLATES.env.filters["rate"] = lambda value: f"{Decimal(value).normalize():f}"
 TEMPLATES.env.filters["day"] = lambda value: f"{value:%d %b %Y}" if value else ""

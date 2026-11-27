@@ -13,6 +13,14 @@
   "cover_arranged": "Arranged cover",
   "cover_cancelled": "Cancelled cover",
   "trip_opened": "Opened a trip",
+  "approvals_handed_over": "Handed over approvals",
+  "person_added": "Added a person",
+  "person_updated": "Changed a person's details",
+  "person_deactivated": "Deactivated a person",
+  "people_imported": "Imported people from HR",
+  "category_added": "Added a category",
+  "category_updated": "Changed a category",
+  "exchange_rate_set": "Set an exchange rate",
 } %}
 {% macro history_line(entry, lookups) -%}
   {% set actor = lookups.person(entry.actor_id) %}
@@ -29,6 +37,13 @@
   {% if entry.details.get("reason") %}<div class="comment">{{ entry.details.reason }}</div>{% endif %}
   {% if entry.action == "revised" %}<div class="small muted">{{ entry.details.before.amount }} → {{ entry.details.after.amount }}{% if entry.details.needs_reapproval %}, sent back for approval{% else %}, approval kept{% endif %}</div>{% endif %}
   {% if entry.action == "payment_recorded" %}<div class="small muted">Invoice {{ entry.details.invoice_reference }}, {{ entry.details.amount }}</div>{% endif %}
+  {% if entry.action == "approvals_handed_over" %}<div class="small muted">From {{ lookups.person(entry.details.from_id).name }} to {{ lookups.person(entry.details.to_id).name }}</div>{% endif %}
+  {% if entry.action == "person_added" %}<div class="small muted">{{ entry.details.name }}, {{ entry.details.email }}</div>{% endif %}
+  {% if entry.action in ("person_updated", "person_deactivated") %}<div class="small muted">{{ entry.details.person }}</div>{% endif %}
+  {% if entry.action == "people_imported" %}<div class="small muted">{{ entry.details.added|length }} added, {{ entry.details.changed|length }} changed, {{ entry.details.deactivated|length }} deactivated</div>{% endif %}
+  {% if entry.action == "category_added" %}<div class="small muted">{{ entry.details.name }}</div>{% endif %}
+  {% if entry.action == "category_updated" %}<div class="small muted">{{ entry.details.category }}</div>{% endif %}
+  {% if entry.action == "exchange_rate_set" %}<div class="small muted">{{ entry.details.currency }} {% if entry.details.rate_from %}{{ entry.details.rate_from|rate }} → {% endif %}{{ entry.details.rate_to|rate }}</div>{% endif %}
   {% if entry.details.get("notes") %}<div class="small muted">{{ entry.details.notes|join(" ") }}</div>{% endif %}
   <div class="when">{{ entry.occurred_at|when }}</div>
 {%- endmacro %}

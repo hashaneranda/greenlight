@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+from greenlight.config import Settings
 from greenlight.infrastructure.persistence import tables
 from greenlight.infrastructure.persistence.orm import start_mappers
 from greenlight.infrastructure.persistence.unit_of_work import make_engine
@@ -17,3 +18,9 @@ def database_url(tmp_path):
     tables.metadata.create_all(engine)
     engine.dispose()
     return url
+
+
+@pytest.fixture(autouse=True)
+def ignore_local_env_file(monkeypatch):
+    """A developer's .env must not change what the tests see."""
+    monkeypatch.setitem(Settings.model_config, "env_file", None)

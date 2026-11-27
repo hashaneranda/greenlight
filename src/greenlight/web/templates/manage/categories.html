@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Categories{% endblock %}
+{% macro it_check(id, checked) -%}
+  <label class="check"><input type="checkbox" id="{{ id }}" name="it_review" value="yes" {% if checked %}checked{% endif %}><span>IT approves these<span class="hint">Whatever the amount, IT says yes before the COO.</span></span></label>
+{%- endmacro %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Categories</h1>
+    <p>What people choose when they raise a request. Retire one you no longer use: it stays on old requests but can't be chosen for new ones.</p>
+  </div>
+</div>
+
+<div class="two-up">
+  <form class="sheet" method="post" action="/manage/categories">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="sheet-head"><h2>Add a category</h2></div>
+    <div class="body form-body">
+      <div class="field"><label for="name">Name</label><input id="name" name="name" maxlength="120" required placeholder="Office furniture"></div>
+      {{ it_check("it_review", False) }}
+      <button class="primary block" type="submit">Add category</button>
+    </div>
+  </form>
+
+  <section class="sheet">
+    <div class="sheet-head"><h2>In use and retired</h2></div>
+    <ul class="rows">
+      {% for category in categories %}
+      <li class="row">
+        <span class="title">{{ category.name }}</span>
+        <form class="end" method="post" action="/manage/categories/{{ category.id }}">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="name" value="{{ category.name }}">
+          {% if category.requires_it_review %}<input type="hidden" name="it_review" value="yes">{% endif %}
+          <input type="hidden" name="is_active" value="{{ 'no' if category.is_active else 'yes' }}">
+          <button class="link small" type="submit">{{ "Retire" if category.is_active else "Bring back" }}</button>
+        </form>
+        <span class="sub">{% if not category.is_active %}<span class="status-text">Retired</span>{% elif category.requires_it_review %}IT approves these{% endif %}</span>
+        {% if category.is_active %}
+        <details class="wide">
+          <summary>Change</summary>
+          <form method="post" action="/manage/categories/{{ category.id }}" class="spaced-form">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="is_active" value="yes">
+            <div class="field"><label for="name-{{ loop.index }}">Name</label><input id="name-{{ loop.index }}" name="name" maxlength="120" required value="{{ category.name }}"></div>
+            {{ it_check("it-review-" ~ loop.index, category.requires_it_review) }}
+            <button type="submit">Save</button>
+          </form>
+        </details>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

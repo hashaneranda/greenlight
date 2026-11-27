@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -28,6 +29,8 @@ class SpendRequests(Protocol):
 
     def with_status(self, status: RequestStatus) -> list[SpendRequest]: ...
 
+    def references(self, request_ids: Collection[UUID]) -> dict[UUID, str]: ...
+
 
 class People(Protocol):
     def get(self, employee_id: UUID) -> Employee | None: ...
@@ -47,10 +50,20 @@ class People(Protocol):
     def sites(self) -> list[Site]: ...
 
 
+@dataclass(frozen=True)
+class RateRow:
+    currency: str
+    usd_per_unit: Decimal
+    updated_at: datetime
+    updated_by_id: UUID | None
+
+
 class Catalog(Protocol):
     def categories(self) -> list[Category]: ...
 
     def category(self, category_id: UUID) -> Category | None: ...
+
+    def add_category(self, category: Category) -> None: ...
 
     def tags(self) -> list[Tag]: ...
 
@@ -63,6 +76,12 @@ class Catalog(Protocol):
     def set_executive_threshold(self, category_id: UUID, amount_usd: Decimal) -> None: ...
 
     def usd_rate(self, currency: str) -> Decimal | None: ...
+
+    def rates(self) -> list[RateRow]: ...
+
+    def set_usd_rate(
+        self, currency: str, usd_per_unit: Decimal, by_id: UUID, at: datetime
+    ) -> None: ...
 
     def currencies(self) -> list[str]: ...
 
@@ -106,10 +125,22 @@ class OutgoingNotification:
     body: str
     request_id: UUID | None
     created_at: datetime
+    id: int | None = None
+    delivered_at: datetime | None = None
+    delivery_error: str = ""
+    attempts: int = 0
+    channel: str = ""
+    read_at: datetime | None = None
 
 
 class Outbox(Protocol):
     def add(self, notification: OutgoingNotification) -> None: ...
+
+    def for_recipient(self, recipient_id: UUID, limit: int = 50) -> list[OutgoingNotification]: ...
+
+    def unread_count(self, recipient_id: UUID) -> int: ...
+
+    def mark_all_read(self, recipient_id: UUID, now: datetime) -> None: ...
 
 
 class UnitOfWork(Protocol):

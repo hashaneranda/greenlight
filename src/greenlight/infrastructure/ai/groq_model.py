@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import re
+from collections.abc import Callable
 
 import pypdfium2
 from openai import OpenAI, OpenAIError
@@ -10,13 +11,13 @@ from pydantic import BaseModel, ValidationError
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
-from greenlight.infrastructure.ai.document_readers import ReadFailed
+from greenlight.infrastructure.ai.document_readers import ModelUnavailable, ReadFailed, Usage
 
 GROQ_URL = "https://api.groq.com/openai/v1"
 MOST_PAGES_AS_IMAGES = 3
 TEXT_WORTH_READING = 40
 MOST_TEXT = 12_000
-MOST_ANSWER_TOKENS = 1_500
+MOST_ANSWER_TOKENS = 900
 
 log = logging.getLogger(__name__)
 
@@ -28,11 +29,18 @@ class GroqModel:
     first pages when it is a scan with no text in it.
     """
 
-    def __init__(self, api_key: str, model: str, client: OpenAI | None = None):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        client: OpenAI | None = None,
+        on_usage: Callable[[Usage], None] | None = None,
+    ):
         self._client = client or OpenAI(
             api_key=api_key, base_url=GROQ_URL, timeout=60, max_retries=2
         )
         self._model = model
+        self._on_usage = on_usage
 
     def fill[T: BaseModel](
         self, content: bytes, content_type: str, instructions: str, schema: type[T]
@@ -54,7 +62,7 @@ class GroqModel:
                 max_completion_tokens=MOST_ANSWER_TOKENS,
             )
         except OpenAIError as error:
-            raise ReadFailed(str(error)) from error
+            raise ModelUnavailable(str(error)) from error
 
         if usage := response.usage:
             log.info(
@@ -63,6 +71,8 @@ class GroqModel:
                 usage.prompt_tokens,
                 usage.completion_tokens,
             )
+            if self._on_usage:
+                self._on_usage(Usage(usage.prompt_tokens, usage.completion_tokens))
         answer = _without_thinking(response.choices[0].message.content or "")
         try:
             return schema.model_validate_json(answer)

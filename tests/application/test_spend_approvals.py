@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from greenlight.application import audit_chain
+from greenlight.application import audit_chain, event_handlers
 from greenlight.application.queries import SpendQueries
 from greenlight.application.use_cases import KeptQuote, SpendApprovals, Upload
 from greenlight.domain.errors import InvalidRequest, NotPermitted
@@ -67,6 +67,20 @@ def test_submitting_notifies_the_line_manager(company, uow, approvals):
     assert reference == "GL-00001"
     assert recipients(uow, company) == [("Priya", "Approval needed")]
     assert uow.commits == 1
+
+
+def test_the_person_taking_over_is_asked_to_approve(company, uow, approvals):
+    reference = approvals.submit(company.sam.id, details(company.general), [PDF])
+    request = uow.requests.by_reference(reference)
+
+    request.hand_over_approvals(company.priya, company.nadia, actor=company.ceo, now=NOW)
+    event_handlers.handle(uow, request, NOW)
+
+    assert [e.action for e in uow.audit.entries[-2:]] == [
+        "approvals_handed_over",
+        "approval_requested",
+    ]
+    assert recipients(uow, company)[-1] == ("Nadia", "Approval needed")
 
 
 def test_quote_must_be_a_document_or_photo(company, approvals):
@@ -157,6 +171,25 @@ def test_reminders_go_to_approvers_who_have_not_acted(company, uow, approvals, c
     assert approvals.send_reminders(timedelta(hours=24)) == 1
     assert approvals.send_reminders(timedelta(hours=24)) == 0
     assert uow.outbox.sent[-1].subject.startswith("Reminder")
+
+
+def test_the_approver_finds_the_request_in_their_inbox(company, approvals, queries):
+    reference = approvals.submit(company.priya.id, details(company.general), [PDF])
+
+    assert queries.unread_count(company.nadia.id) == 1
+    [item] = queries.inbox(company.nadia.id)
+    assert item.subject == f"Approval needed: Annual licence ({reference})"
+    assert item.reference == reference
+    assert item.is_new
+
+
+def test_opening_the_inbox_marks_everything_read(company, approvals, queries):
+    approvals.submit(company.priya.id, details(company.general), [PDF])
+
+    approvals.mark_inbox_read(company.nadia.id)
+
+    assert queries.unread_count(company.nadia.id) == 0
+    assert not queries.inbox(company.nadia.id)[0].is_new
 
 
 def test_invoice_is_matched_to_its_approval(company, uow, clock):

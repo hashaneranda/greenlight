@@ -1,0 +1,407 @@
+{
+  "label": "groq-2026-11-27",
+  "model": "qwen/qwen3.8-27b",
+  "recorded_on": "2026-11-27",
+  "reads": {
+    "36b699e8f775654146463ffbf933d97b3b80920c22e3a32c35aafa7f2efdd9ca": {
+      "case": "q01-saas-annual",
+      "reading": {
+        "supplier": "Fieldbook Software Ltd",
+        "title": "Fieldbook Operations licence",
+        "currency": "USD",
+        "amount": "1450",
+        "billing_period": "monthly",
+        "term_months": 12,
+        "category": "Software and subscriptions",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 693,
+        "completion_tokens": 89
+      },
+      "seconds": 0.339
+    },
+    "618d56a3f996c23bbc1f673454a1d3ff45de83d363effe5550603033c29439df": {
+      "case": "q02-laptops-aed",
+      "reading": {
+        "supplier": "Al Qusais Office Systems LLC",
+        "title": "Laptops and accessories for Orvane Group",
+        "currency": "AED",
+        "amount": "56364",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "IT hardware",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 746,
+        "completion_tokens": 97
+      },
+      "seconds": 0.351
+    },
+    "88badc73147d7a4c3360cfc5aac9a2527f5a7f38b186b9c720ffa06fb2deb186": {
+      "case": "q03-generator-cdf",
+      "reading": {
+        "supplier": "Lualaba Énergie Services SARL",
+        "title": "Diesel generator and installation",
+        "currency": "CDF",
+        "amount": "52000000",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "Site equipment and supplies",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 843,
+        "completion_tokens": 95
+      },
+      "seconds": 0.349
+    },
+    "8999b11c54421f908292ef38085a24f54d38acb0827f7508dd8ca811d9b2cfb4": {
+      "case": "q04-catering-tzs",
+      "reading": {
+        "supplier": "Geita Lakeside Caterers Ltd",
+        "title": "Catering and supplies for December shutdown",
+        "currency": "TZS",
+        "amount": "51719400",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "Site equipment and supplies",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 825,
+        "completion_tokens": 99
+      },
+      "seconds": 0.46
+    },
+    "fb78313a137d1f43bdba7935d72cba9efa5178943a428b0d593c2c5faa86cfca": {
+      "case": "q05-scan-quote",
+      "reading": {
+        "supplier": "Mutoshi Industrial Supplies SARL",
+        "title": "Safety equipment for Kolwezi site",
+        "currency": "USD",
+        "amount": "5888.16",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "Site equipment and supplies",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 2164,
+        "completion_tokens": 95
+      },
+      "seconds": 1.576
+    },
+    "c4530c5183cf887e977f5166f5e7178534dc5a5fb05f1c1f75541936ad766de4": {
+      "case": "q06-two-totals",
+      "reading": {
+        "supplier": "Gulf Crest Fit-Out LLC",
+        "title": "Meeting room 22B refit",
+        "currency": "AED",
+        "amount": "39133.5",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "Facilities",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 788,
+        "completion_tokens": 95
+      },
+      "seconds": 0.525
+    },
+    "901be1715306fa038cacf4b135df6261d10f33ed140ddb0811af235e9bf6746e": {
+      "case": "q07-injection-quote",
+      "reading": {
+        "supplier": "Ridgeway Assay Laboratories Ltd",
+        "title": "Assay and sample preparation services",
+        "currency": "USD",
+        "amount": "16567.2",
+        "billing_period": "none",
+        "term_months": null,
+        "category": "Professional services",
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 743,
+        "completion_tokens": 88
+      },
+      "seconds": 0.33
+    },
+    "c01b441ae2d187abf040e0602609db9cbd3f37f4fa19d78b4631b16243fbfd9e": {
+      "case": "q08-not-a-quote",
+      "failed": "The model's answer did not fit the schema.",
+      "usage": {
+        "prompt_tokens": 620,
+        "completion_tokens": 91
+      },
+      "seconds": 0.307
+    },
+    "dae488a375e9e026546e554b22fd52be5ca0f49b88bea96652a9f467704a23cc": {
+      "case": "i01-clean-usd",
+      "reading": {
+        "supplier": "Meridian Survey Instruments FZE",
+        "invoice_number": "MSI-INV-20931",
+        "currency": "USD",
+        "total": "20034",
+        "invoice_date": "2026-11-12",
+        "purchase_reference": "GL-00001",
+        "lines": [
+          {
+            "description": "GNSS receiver kit, base and rover",
+            "amount": "14800"
+          },
+          {
+            "description": "Data collector with field software",
+            "amount": "3250"
+          },
+          {
+            "description": "Tripod and range pole set",
+            "amount": "780"
+          },
+          {
+            "description": "Calibration certificate",
+            "amount": "250"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 708,
+        "completion_tokens": 233
+      },
+      "seconds": 0.537
+    },
+    "8b59a9b29500d70ecdc647f5b66725407e93630a43fcfa73e5273941e54a6847": {
+      "case": "i02-multipage",
+      "reading": {
+        "supplier": "Nyanza Fuel Distributors Ltd",
+        "invoice_number": "NFD/26/1194",
+        "currency": "USD",
+        "total": "525690",
+        "invoice_date": "2026-11-03",
+        "purchase_reference": "GL-00027",
+        "lines": [
+          {
+            "description": "Diesel 50 ppm, 01 Oct 2026, day run\nDelivery note DN-4402, truck T-11, site tank 1",
+            "amount": "7920"
+          },
+          {
+            "description": "Diesel 50 ppm, 01 Oct 2026, night run\nDelivery note DN-4403, truck T-12, site tank 2",
+            "amount": "10560"
+          },
+          {
+            "description": "Diesel 50 ppm, 02 Oct 2026, day run\nDelivery note DN-4404, truck T-13, site tank 3",
+            "amount": "5940"
+          },
+          {
+            "description": "Diesel 50 ppm, 02 Oct 2026, night run\nDelivery note DN-4405, truck T-14, site tank 1",
+            "amount": "9900"
+          },
+          {
+            "description": "Diesel 50 ppm, 03 Oct 2026, day run\nDelivery note DN-4406, truck T-11, site tank 2",
+            "amount": "6600"
+          },
+          {
+            "description": "Diesel 50 ppm, 03 Oct 2026, night run\nDelivery note DN-4407, truck T-12, site tank 3",
+            "amount": "8580"
+          },
+          {
+            "description": "Diesel 50 ppm, 05 Oct 2026, day run\nDelivery note DN-4408, truck T-13, site tank 1",
+            "amount": "7920"
+          },
+          {
+            "description": "Diesel 50 ppm, 05 Oct 2026, night run\nDelivery note DN-4409, truck T-14, site tank 2",
+            "amount": "10560"
+          },
+          {
+            "description": "Diesel 50 ppm, 06 Oct 2026, day run\nDelivery note DN-4410, truck T-11, site tank 3",
+            "amount": "5940"
+          },
+          {
+            "description": "Diesel 50 ppm, 06 Oct 2026, night run\nDelivery note DN-4411, truck T-12, site tank 1",
+            "amount": "9900"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 3909,
+        "completion_tokens": 756
+      },
+      "seconds": 1.849
+    },
+    "23732a68f917b24fc36e068701d50547ceb5e28fe247909188751136efcab465": {
+      "case": "i03-scan-invoice",
+      "reading": {
+        "supplier": "Deira Print & Stationery LLC",
+        "invoice_number": "DPS-55120",
+        "currency": "AED",
+        "total": "12426.75",
+        "invoice_date": "2026-11-06",
+        "purchase_reference": "GL-00019",
+        "lines": [
+          {
+            "description": "A4 copier paper, 80 gsm, box of 5 reams",
+            "amount": "7600"
+          },
+          {
+            "description": "Toner cartridge, black, high yield",
+            "amount": "3660"
+          },
+          {
+            "description": "Lever arch files, assorted colours",
+            "amount": "500"
+          },
+          {
+            "description": "Same-day delivery",
+            "amount": "75"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 2159,
+        "completion_tokens": 250
+      },
+      "seconds": 1.477
+    },
+    "48adbbdff73ff255a50a7dea4211b666642c6e0b78386d651c0b86b70047af44": {
+      "case": "i04-eur-no-po",
+      "reading": {
+        "supplier": "Rheinfeld Pumpentechnik GmbH",
+        "invoice_number": "RE-2026-04417",
+        "currency": "EUR",
+        "total": "18480",
+        "invoice_date": "2026-10-28",
+        "purchase_reference": "",
+        "lines": [
+          {
+            "description": "Slurry pump impeller, high-chrome, 300 mm",
+            "amount": "9700"
+          },
+          {
+            "description": "Mechanical seal set",
+            "amount": "4480"
+          },
+          {
+            "description": "Throatbush wear plate",
+            "amount": "3920"
+          },
+          {
+            "description": "Seaworthy export crate",
+            "amount": "380"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 745,
+        "completion_tokens": 236
+      },
+      "seconds": 12.756
+    },
+    "a604932da55a155853bd59ffd8ff8e42004e37b077ef25e6fac36c0b876b32ba": {
+      "case": "i05-injection-invoice",
+      "reading": {
+        "supplier": "Hatta Industrial Gases LLC",
+        "invoice_number": "HIG-24-08816",
+        "currency": "AED",
+        "total": "7717.5",
+        "invoice_date": "2026-11-19",
+        "purchase_reference": "GL-00412",
+        "lines": [
+          {
+            "description": "Oxygen cylinder refill, 50 L",
+            "amount": "3400"
+          },
+          {
+            "description": "Acetylene cylinder refill",
+            "amount": "2800"
+          },
+          {
+            "description": "Cylinder rental, per cylinder per month",
+            "amount": "900"
+          },
+          {
+            "description": "Delivery to warehouse",
+            "amount": "250"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 738,
+        "completion_tokens": 241
+      },
+      "seconds": 0.523
+    },
+    "05ed3646118d58505af77638f9d7380d14e0bc3af4e46f5705d414b612ae2351": {
+      "case": "i06-balance-due",
+      "reading": {
+        "supplier": "Kanina Guarding Services SARL",
+        "invoice_number": "KGS-F-2026-311",
+        "currency": "USD",
+        "total": "22504",
+        "invoice_date": "2026-11-02",
+        "purchase_reference": "GL-00388",
+        "lines": [
+          {
+            "description": "Gardiennage statique 24 h/24, par poste, octobre 2026",
+            "amount": "14400"
+          },
+          {
+            "description": "Patrouille mobile avec véhicule et équipage",
+            "amount": "3800"
+          },
+          {
+            "description": "Superviseur de site",
+            "amount": "1200"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 768,
+        "completion_tokens": 228
+      },
+      "seconds": 0.615
+    },
+    "92ff9e6dce9e015051853606c697dd0e8145bffbcfba12060c47b189bd6211a6": {
+      "case": "i07-tzs",
+      "reading": {
+        "supplier": "Busolwa Tyre Centre Ltd",
+        "invoice_number": "BTC-INV-7742",
+        "currency": "TZS",
+        "total": "15092200",
+        "invoice_date": "2026-11-17",
+        "purchase_reference": "GL-00205",
+        "lines": [
+          {
+            "description": "Tyre 12.00R24, mine service",
+            "amount": "11600000"
+          },
+          {
+            "description": "Tube and flap, 12.00R24",
+            "amount": "760000"
+          },
+          {
+            "description": "Fitting and balancing",
+            "amount": "280000"
+          },
+          {
+            "description": "Call-out to site",
+            "amount": "150000"
+          }
+        ],
+        "unclear_fields": []
+      },
+      "usage": {
+        "prompt_tokens": 747,
+        "completion_tokens": 260
+      },
+      "seconds": 0.651
+    }
+  }
+}

@@ -2,12 +2,14 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from greenlight.application import audit_chain
-from greenlight.application.ports import AuditEntry, OutgoingNotification
+from greenlight.application.ports import AuditEntry, OutgoingNotification, RateRow
 from greenlight.domain.approval_policy import ApprovalPolicy
 from greenlight.domain.catalog import Category, Tag
 from greenlight.domain.cover import Cover
 from greenlight.domain.invoice_matching import Invoice
+from greenlight.domain.money import BASE_CURRENCY
 from greenlight.domain.people import Department, Employee, Site
+from tests.domain.builders import NOW
 
 
 class InMemoryRequests:
@@ -35,17 +37,23 @@ class InMemoryRequests:
     def with_status(self, status):
         return [r for r in self.items.values() if r.status == status]
 
+    def references(self, request_ids):
+        return {i: self.items[i].reference for i in request_ids if i in self.items}
+
 
 class InMemoryPeople:
-    def __init__(self, people: list[Employee], departments: list[Department] = ()):
+    def __init__(
+        self, people: list[Employee], departments: list[Department] = (), sites: list[Site] = ()
+    ):
         self.items = {p.id: p for p in people}
         self._departments = list(departments)
+        self._sites = list(sites)
 
     def get(self, employee_id):
         return self.items.get(employee_id)
 
     def by_email(self, email):
-        return next((p for p in self.items.values() if p.email == email), None)
+        return next((p for p in self.items.values() if p.email.lower() == email.lower()), None)
 
     def active(self):
         return [p for p in self.items.values() if p.is_active]
@@ -63,7 +71,7 @@ class InMemoryPeople:
         return self._departments
 
     def sites(self) -> list[Site]:
-        return []
+        return self._sites
 
 
 class InMemoryCatalog:
@@ -71,13 +79,16 @@ class InMemoryCatalog:
         self._categories = {c.id: c for c in categories}
         self._tags: dict = {}
         self._policy = policy
-        self._rates = {"USD": Decimal("1"), **rates}
+        self._rates = {code: RateRow(code, rate, NOW, None) for code, rate in rates.items()}
 
     def categories(self):
         return list(self._categories.values())
 
     def category(self, category_id):
         return self._categories.get(category_id)
+
+    def add_category(self, category: Category):
+        self._categories[category.id] = category
 
     def tags(self):
         return list(self._tags.values())
@@ -95,10 +106,19 @@ class InMemoryCatalog:
         self._policy.category_thresholds_usd[category_id] = amount_usd
 
     def usd_rate(self, currency):
-        return self._rates.get(currency)
+        if currency == BASE_CURRENCY:
+            return Decimal("1")
+        rate = self._rates.get(currency)
+        return rate.usd_per_unit if rate else None
+
+    def rates(self):
+        return sorted(self._rates.values(), key=lambda rate: rate.currency)
+
+    def set_usd_rate(self, currency, usd_per_unit, by_id, at):
+        self._rates[currency] = RateRow(currency, usd_per_unit, at, by_id)
 
     def currencies(self):
-        return sorted(self._rates)
+        return [BASE_CURRENCY, *sorted(self._rates)]
 
 
 class InMemoryCovers:
@@ -142,6 +162,19 @@ class InMemoryOutbox:
 
     def add(self, notification):
         self.sent.append(notification)
+
+    def for_recipient(self, recipient_id, limit=50):
+        return self._sent_to(recipient_id)[:limit]
+
+    def unread_count(self, recipient_id):
+        return sum(1 for n in self._sent_to(recipient_id) if n.read_at is None)
+
+    def mark_all_read(self, recipient_id, now):
+        for notification in self._sent_to(recipient_id):
+            notification.read_at = notification.read_at or now
+
+    def _sent_to(self, recipient_id):
+        return [n for n in reversed(self.sent) if n.recipient_id == recipient_id]
 
 
 class FakeUnitOfWork:

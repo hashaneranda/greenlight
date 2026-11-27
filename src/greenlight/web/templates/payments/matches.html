@@ -59,7 +59,7 @@
       </dl>
       {% if invoice.lines %}
       <details>
-        <summary>{{ invoice.lines|length }} line{{ "s" if invoice.lines|length != 1 }} on the invoice</summary>
+        <summary>{{ invoice.lines|length }} line{{ "s" if invoice.lines|length != 1 }} read from the invoice</summary>
         <ul class="rows flat">
           {% for line in invoice.lines %}
           <li class="row"><span class="sub">{{ line.description }}</span><span class="amount">{{ "{:,.2f}".format(line.amount) }}</span></li>

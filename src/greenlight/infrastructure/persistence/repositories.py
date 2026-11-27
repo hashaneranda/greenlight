@@ -1,4 +1,5 @@
-from datetime import date
+from collections.abc import Collection
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -6,7 +7,7 @@ from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.orm import Session
 
 from greenlight.application import audit_chain
-from greenlight.application.ports import AuditEntry, OutgoingNotification
+from greenlight.application.ports import AuditEntry, OutgoingNotification, RateRow
 from greenlight.domain.approval_policy import ApprovalPolicy
 from greenlight.domain.catalog import Category, Tag
 from greenlight.domain.cover import Cover
@@ -64,6 +65,13 @@ class SqlSpendRequests:
             )
         )
 
+    def references(self, request_ids: Collection[UUID]) -> dict[UUID, str]:
+        columns = tables.spend_requests.c
+        rows = self._session.execute(
+            select(columns.id, columns.reference).where(columns.id.in_(request_ids))
+        )
+        return {row.id: row.reference for row in rows}
+
 
 class SqlPeople:
     def __init__(self, session: Session):
@@ -93,7 +101,10 @@ class SqlPeople:
         return [person for person in self.active() if person.has_role(role)]
 
     def add(self, employee: Employee) -> None:
+        # A flush sends updates before inserts, so a colleague changed later in this
+        # transaction to report to the new person would otherwise point at nobody.
         self._session.add(employee)
+        self._session.flush()
 
     def departments(self) -> list[Department]:
         return list(self._session.scalars(select(Department)))
@@ -111,6 +122,9 @@ class SqlCatalog:
 
     def category(self, category_id: UUID) -> Category | None:
         return self._session.get(Category, category_id)
+
+    def add_category(self, category: Category) -> None:
+        self._session.add(category)
 
     def tags(self) -> list[Tag]:
         return list(self._session.scalars(select(Tag)))
@@ -151,6 +165,20 @@ class SqlCatalog:
                 tables.exchange_rates.c.currency == currency
             )
         ).scalar()
+
+    def rates(self) -> list[RateRow]:
+        rates = tables.exchange_rates
+        rows = self._session.execute(select(rates).order_by(rates.c.currency))
+        return [RateRow(**row._mapping) for row in rows]
+
+    def set_usd_rate(self, currency: str, usd_per_unit: Decimal, by_id: UUID, at: datetime) -> None:
+        rates = tables.exchange_rates
+        values = {"usd_per_unit": usd_per_unit, "updated_at": at, "updated_by_id": by_id}
+        changed = self._session.execute(
+            update(rates).where(rates.c.currency == currency).values(**values)
+        )
+        if changed.rowcount == 0:
+            self._session.execute(insert(rates).values(currency=currency, **values))
 
     def currencies(self) -> list[str]:
         codes = set(self._session.scalars(select(tables.exchange_rates.c.currency)))
@@ -227,3 +255,30 @@ class SqlOutbox:
 
     def add(self, notification: OutgoingNotification) -> None:
         self._session.add(notification)
+
+    def for_recipient(self, recipient_id: UUID, limit: int = 50) -> list[OutgoingNotification]:
+        columns = tables.notifications.c
+        return list(
+            self._session.scalars(
+                select(OutgoingNotification)
+                .where(columns.recipient_id == recipient_id)
+                .order_by(columns.created_at.desc(), columns.id.desc())
+                .limit(limit)
+            )
+        )
+
+    def unread_count(self, recipient_id: UUID) -> int:
+        columns = tables.notifications.c
+        return self._session.scalar(
+            select(func.count())
+            .select_from(tables.notifications)
+            .where(columns.recipient_id == recipient_id, columns.read_at.is_(None))
+        )
+
+    def mark_all_read(self, recipient_id: UUID, now: datetime) -> None:
+        columns = tables.notifications.c
+        self._session.execute(
+            update(tables.notifications)
+            .where(columns.recipient_id == recipient_id, columns.read_at.is_(None))
+            .values(read_at=now)
+        )

@@ -525,6 +525,43 @@ class SpendRequest:
             "confidential": self.is_confidential,
         }
 
+    def hand_over_approvals(
+        self, from_person: Employee, to_person: Employee, *, actor: Employee, now: datetime
+    ) -> None:
+        if to_person.id == from_person.id:
+            raise InvalidRequest(f"Choose someone other than {from_person.first_name}.")
+        if to_person.id == self.requester_id:
+            raise NotPermitted(
+                f"{to_person.first_name} raised {self.reference} and can't approve it."
+            )
+        if not to_person.is_active:
+            raise NotPermitted(f"{to_person.first_name} has left and can't take over approvals.")
+        if self._approved_by(to_person):
+            raise NotPermitted(
+                f"{to_person.first_name} has already approved {self.reference}. "
+                "Choose someone else."
+            )
+        handed_over = self._open_steps_for(from_person)
+        if not handed_over:
+            raise InvalidRequest(
+                f"{from_person.first_name} has nothing waiting on {self.reference}."
+            )
+
+        asked_now = self.pending_step in handed_over
+        for step in handed_over:
+            step.approver_id = to_person.id
+        self._merge_steps_held_by(to_person)
+        self._record(
+            events.ApprovalsHandedOver(
+                self.id, actor.id, from_id=from_person.id, to_id=to_person.id
+            )
+        )
+        if asked_now:
+            self._activate(self.pending_step, now)
+
+    def is_waiting_on(self, approver: Employee) -> bool:
+        return bool(self._open_steps_for(approver))
+
     def remind_approver(self, now: datetime, after: timedelta) -> bool:
         step = self.pending_step
         if step is None or now - (step.reminded_at or step.activated_at) < after:
@@ -548,9 +585,19 @@ class SpendRequest:
         # Not a dataclass field: the ORM rebuilds aggregates without calling __init__.
         return getattr(self, "_events", [])
 
+    def _open_steps_for(self, approver: Employee) -> list[ApprovalStep]:
+        return [s for s in self.current_steps if s.is_open and s.approver_id == approver.id]
+
+    def _merge_steps_held_by(self, approver: Employee) -> None:
+        first, *repeats = self._open_steps_for(approver)
+        for step in repeats:
+            first.stages = [*first.stages, *step.stages]
+            self.steps.remove(step)
+
     def _activate(self, step: ApprovalStep, now: datetime) -> None:
         step.status = StepStatus.PENDING
         step.activated_at = now
+        step.reminded_at = None
         self._record(
             events.ApprovalRequested(
                 self.id, None, approver_id=step.approver_id, stage_label=step.stage_label

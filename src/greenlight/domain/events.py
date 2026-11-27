@@ -34,6 +34,12 @@ class ApprovalReminded(DomainEvent):
 
 
 @dataclass(frozen=True)
+class ApprovalsHandedOver(DomainEvent):
+    from_id: UUID
+    to_id: UUID
+
+
+@dataclass(frozen=True)
 class StepApproved(DomainEvent):
     on_behalf_of_id: UUID | None
     stages: list[str]
