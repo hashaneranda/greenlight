@@ -67,6 +67,28 @@ def test_staff_cannot_open_the_payments_ledger_or_audit_log(client):
     assert client.get("/audit").status_code == 403
 
 
+def test_the_audit_log_says_the_chain_is_verified(client):
+    sign_in_as(client, "Tom Becker")
+
+    assert "Chain verified" in client.get("/audit").text
+
+
+def test_the_audit_log_names_the_first_entry_changed_after_it_was_sealed(client):
+    with client.app.state.container.session_factory.begin() as session:
+        session.execute(
+            update(tables.audit_entries)
+            .where(tables.audit_entries.c.sequence == 3)
+            .values(details={"reason": "Written in later"})
+        )
+    sign_in_as(client, "Tom Becker")
+
+    page = client.get("/audit").text
+
+    assert "Chain broken" in page
+    assert "The first entry that doesn't match is" in page
+    assert "No. 3:" in page
+
+
 def raise_water_dispenser(client: TestClient) -> Response:
     sign_in_as(client, "Grace Mutombo")
     form = client.get("/requests/new").text
@@ -150,7 +172,7 @@ def test_the_coo_sees_and_can_change_approval_rules(client):
 
     assert "$7,500" in client.get("/rules").text
     sign_in_as(client, "Tom Becker")
-    assert "changed an approval rule" in client.get("/audit").text
+    assert "Changed an approval rule" in client.get("/audit").text
 
 
 def test_staff_cannot_see_approval_rules(client):

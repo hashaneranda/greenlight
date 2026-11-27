@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% from "partials/history.html" import history_line with context %}
+{% from "partials/history.html" import entry_action, entry_details with context %}
+{% from "partials/icons.html" import icon %}
+{% from "partials/macros.html" import empty_state %}
 {% block title %}Audit log{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -8,19 +10,51 @@
     <p>Every action, who took it and when. Entries can't be edited, and each one is sealed to the one before it, so any change to the past breaks the chain.</p>
   </div>
 </div>
-{% if tampered %}
-<div class="verdict stop"><span class="light rejected" aria-hidden="true"></span><div><strong>The chain is broken</strong>{{ tampered|length }} entr{{ "ies don't" if tampered|length != 1 else "y doesn't" }} match the chain. Investigate before relying on this log.</div></div>
-{% else %}
-<div class="verdict ok"><span class="light approved" aria-hidden="true"></span><div><strong>Chain verified</strong>No entries have been altered.</div></div>
-{% endif %}
-<section class="sheet">
-  <ul class="rows audit">
-    {% for entry in entries %}
-    <li class="row">
-      <span class="sub">{{ history_line(entry, lookups) }}</span>
-      <span class="sub end">{% if entry.request_id in references %}<a href="/requests/{{ references[entry.request_id] }}">{{ references[entry.request_id] }}</a>{% endif %}</span>
-    </li>
-    {% endfor %}
-  </ul>
+
+{% set broken = tampered|map(attribute="hash")|list %}
+<section class="chain{% if tampered %} broken{% endif %}" aria-labelledby="chain-heading">
+  {% if tampered %}
+  {% set first = tampered[0] %}
+  {% set first_actor = lookups.person(first.actor_id) %}
+  <h2 class="chain-badge" id="chain-heading">{{ icon("flag") }}Chain broken</h2>
+  <p>The first entry that doesn't match is <a href="#entry-{{ first.hash[:12] }}">No. {{ first_broken_number }}: {{ entry_action(first, lookups)|trim }}{% if first_actor %} by {{ first_actor.name }}{% endif %}, {{ first.occurred_at|when }}</a>. {{ tampered|length }} entr{{ "ies don't" if tampered|length != 1 else "y doesn't" }} match what was sealed. Don't rely on this log until someone has looked into it.</p>
+  {% else %}
+  <h2 class="chain-badge" id="chain-heading">{{ icon("check") }}Chain verified</h2>
+  <p>All {{ total }} entr{{ "ies" if total != 1 else "y" }} match what was sealed. Nothing has changed since it was written.</p>
+  {% endif %}
+</section>
+
+<section class="sheet" aria-labelledby="entries-heading">
+  <div class="sheet-head">
+    <h2 id="entries-heading">Entries</h2>
+    {% if total > entries|length %}<span class="small muted">Latest {{ entries|length }} of {{ total }}</span>{% endif %}
+  </div>
+  {% if entries %}
+  <table class="audit-table">
+    <thead>
+      <tr><th scope="col" class="no">No.</th><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">On behalf of</th><th scope="col">Request</th></tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      {% set actor = lookups.person(entry.actor_id) %}
+      {% set for_whom = lookups.person(entry.on_behalf_of_id) %}
+      <tr id="entry-{{ entry.hash[:12] }}"{% if entry.hash in broken %} class="broken"{% endif %}>
+        <td class="no">{{ total - loop.index0 }}</td>
+        <td class="when"><time datetime="{{ entry.occurred_at.isoformat() }}">{{ entry.occurred_at|when }}</time></td>
+        <td class="who">{% if actor %}{{ actor.name }}{% else %}<span class="muted">Greenlight</span>{% endif %}</td>
+        <td class="what">
+          {% if entry.hash in broken %}<span class="tag stop">Doesn't match</span>{% endif %}
+          <span class="action">{{ entry_action(entry, lookups) }}</span>
+          {{ entry_details(entry, lookups) }}
+        </td>
+        <td class="for">{% if for_whom %}<span class="phone-label">On behalf of </span>{{ for_whom.name }}{% endif %}</td>
+        <td class="ref">{% if entry.request_id in references %}<a href="/requests/{{ references[entry.request_id] }}">{{ references[entry.request_id] }}</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  {{ empty_state("Nothing recorded yet", "Every request, decision, payment and admin change is written here as it happens.") }}
+  {% endif %}
 </section>
 {% endblock %}

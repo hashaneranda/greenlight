@@ -23,6 +23,32 @@
   "exchange_rate_set": "Set an exchange rate",
   "approval_rule_changed": "Changed an approval rule",
 } %}
+{% macro entry_action(entry, lookups) -%}
+  {% set approver = lookups.person(entry.details.get("approver_id")) if entry.details.get("approver_id") else None %}
+  {% if entry.action in ("approval_requested", "reminder_sent") and approver %}
+  {{ "Asked" if entry.action == "approval_requested" else "Reminded" }} {{ approver.name }} to approve as {{ entry.details.stage_label }}
+  {% else %}
+  {{ action_labels.get(entry.action, entry.action) }}
+  {% endif %}
+{%- endmacro %}
+
+{% macro entry_details(entry, lookups) -%}
+  {% if entry.details.get("comment") %}<div class="comment">{{ entry.details.comment }}</div>{% endif %}
+  {% if entry.details.get("reason") %}<div class="comment">{{ entry.details.reason }}</div>{% endif %}
+  {% if entry.action == "revised" %}<div class="small muted">{{ entry.details.before.amount }} → {{ entry.details.after.amount }}{% if entry.details.needs_reapproval %}, sent back for approval{% else %}, approval kept{% endif %}</div>{% endif %}
+  {% if entry.action == "payment_recorded" %}<div class="small muted">Invoice {{ entry.details.invoice_reference }}, {{ entry.details.amount }}</div>{% endif %}
+  {% if entry.action == "cover_arranged" %}<div class="small muted">{{ entry.details.covering }} covers {{ entry.details.starts_on }} to {{ entry.details.ends_on }}</div>{% endif %}
+  {% if entry.action == "approvals_handed_over" %}<div class="small muted">From {{ lookups.person(entry.details.from_id).name }} to {{ lookups.person(entry.details.to_id).name }}</div>{% endif %}
+  {% if entry.action == "person_added" %}<div class="small muted">{{ entry.details.name }}, {{ entry.details.email }}</div>{% endif %}
+  {% if entry.action in ("person_updated", "person_deactivated") %}<div class="small muted">{{ entry.details.person }}</div>{% endif %}
+  {% if entry.action == "people_imported" %}<div class="small muted">{{ entry.details.added|length }} added, {{ entry.details.changed|length }} changed, {{ entry.details.deactivated|length }} deactivated</div>{% endif %}
+  {% if entry.action == "category_added" %}<div class="small muted">{{ entry.details.name }}</div>{% endif %}
+  {% if entry.action == "category_updated" %}<div class="small muted">{{ entry.details.category }}</div>{% endif %}
+  {% if entry.action == "exchange_rate_set" %}<div class="small muted">{{ entry.details.currency }} {% if entry.details.rate_from %}{{ entry.details.rate_from|rate }} → {% endif %}{{ entry.details.rate_to|rate }}</div>{% endif %}
+  {% if entry.action == "approval_rule_changed" %}<div class="small muted">{{ entry.details.category }}, COO limit {{ entry.details.coo_limit_from|usd }} → {{ entry.details.coo_limit_to|usd }}{% if entry.details.suggested_by_greenlight %}, suggested by Greenlight{% endif %}</div>{% endif %}
+  {% if entry.details.get("notes") %}<div class="small muted">{{ entry.details.notes|join(" ") }}</div>{% endif %}
+{%- endmacro %}
+
 {% macro history_line(entry, lookups) -%}
   {% set actor = lookups.person(entry.actor_id) %}
   {% set for_whom = lookups.person(entry.on_behalf_of_id) %}
@@ -34,18 +60,6 @@
   {% else %}
   {{ action_labels.get(entry.action, entry.action) }}
   {% endif %}
-  {% if entry.details.get("comment") %}<div class="comment">{{ entry.details.comment }}</div>{% endif %}
-  {% if entry.details.get("reason") %}<div class="comment">{{ entry.details.reason }}</div>{% endif %}
-  {% if entry.action == "revised" %}<div class="small muted">{{ entry.details.before.amount }} → {{ entry.details.after.amount }}{% if entry.details.needs_reapproval %}, sent back for approval{% else %}, approval kept{% endif %}</div>{% endif %}
-  {% if entry.action == "payment_recorded" %}<div class="small muted">Invoice {{ entry.details.invoice_reference }}, {{ entry.details.amount }}</div>{% endif %}
-  {% if entry.action == "approvals_handed_over" %}<div class="small muted">From {{ lookups.person(entry.details.from_id).name }} to {{ lookups.person(entry.details.to_id).name }}</div>{% endif %}
-  {% if entry.action == "person_added" %}<div class="small muted">{{ entry.details.name }}, {{ entry.details.email }}</div>{% endif %}
-  {% if entry.action in ("person_updated", "person_deactivated") %}<div class="small muted">{{ entry.details.person }}</div>{% endif %}
-  {% if entry.action == "people_imported" %}<div class="small muted">{{ entry.details.added|length }} added, {{ entry.details.changed|length }} changed, {{ entry.details.deactivated|length }} deactivated</div>{% endif %}
-  {% if entry.action == "category_added" %}<div class="small muted">{{ entry.details.name }}</div>{% endif %}
-  {% if entry.action == "category_updated" %}<div class="small muted">{{ entry.details.category }}</div>{% endif %}
-  {% if entry.action == "exchange_rate_set" %}<div class="small muted">{{ entry.details.currency }} {% if entry.details.rate_from %}{{ entry.details.rate_from|rate }} → {% endif %}{{ entry.details.rate_to|rate }}</div>{% endif %}
-  {% if entry.action == "approval_rule_changed" %}<div class="small muted">{{ entry.details.category }}, COO limit {{ entry.details.coo_limit_from|usd }} → {{ entry.details.coo_limit_to|usd }}{% if entry.details.suggested_by_greenlight %}, suggested by Greenlight{% endif %}</div>{% endif %}
-  {% if entry.details.get("notes") %}<div class="small muted">{{ entry.details.notes|join(" ") }}</div>{% endif %}
+  {{ entry_details(entry, lookups) }}
   <div class="when">{{ entry.occurred_at|when }}</div>
 {%- endmacro %}

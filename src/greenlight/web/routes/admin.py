@@ -20,11 +20,15 @@ router = APIRouter()
 def audit_log(request: Request, user: CurrentUser):
     queries = container_of(request).queries
     entries = queries.audit_log(user.id)
+    in_order = list(reversed(entries))
+    tampered = broken_links(in_order)
     return render(
         request,
         "audit.html",
         entries=entries[:500],
-        tampered=broken_links(list(reversed(entries))),
+        total=len(entries),
+        tampered=tampered,
+        first_broken_number=in_order.index(tampered[0]) + 1 if tampered else None,
         references={r.id: r.reference for r in queries.visible_requests(user.id)},
         lookups=queries.lookups(),
     )
