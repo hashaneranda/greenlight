@@ -1,3 +1,4 @@
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -62,6 +63,14 @@ def test_the_form_names_the_quote_ai_read_and_marks_what_to_check(client):
     assert 'name="supplier"' in page and 'value="Kolwezi Cooling SARL"' in page
     assert page.count('class="unclear"') == 2
     assert page.count("Check this</span>") == 2
+
+
+def test_a_price_the_reader_could_not_read_is_left_empty_to_fill_in(client, reader):
+    reader.reading = replace(HARD_TO_READ, amount=None)
+
+    page = read(client).text
+
+    assert 'name="amount" inputmode="decimal" required value=""' in page
 
 
 def test_a_confidential_quote_is_attached_without_reaching_ai(client, reader):
