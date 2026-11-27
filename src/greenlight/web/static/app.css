@@ -323,6 +323,8 @@ button.avatar::after { content: ""; position: absolute; inset: -3px; border-radi
 .sheet-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); border-bottom: 2px solid var(--ink); }
 .sheet-head h2 { padding: 0; }
 .sheet-head h2 svg { width: 20px; height: 20px; vertical-align: -3px; }
+.sheet-head.quiet { border-bottom: 1px solid var(--line); }
+.sheet-head.quiet h2 { font-size: var(--step-1); }
 .sheet-head a.small { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0; font-weight: 700; touch-action: manipulation; }
 .sheet .body { padding: var(--s-4) 0 0; }
 .sheet .body > * + * { margin-top: var(--s-4); }
@@ -367,6 +369,11 @@ a.row:active::after { background: var(--sunken-2); opacity: 1; }
 .row .wide button { justify-self: start; }
 
 .rows.flat .row { padding: var(--s-3) 0; }
+.rows.breakdown .title { min-width: 0; overflow-wrap: anywhere; }
+.rows.breakdown .split { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s-4); }
+.rows.quiet .row { padding: var(--s-3) 0; }
+.rows.quiet .title { font-weight: 600; }
+.rows.quiet .amount { font: 700 var(--step-0)/1.3 var(--font-ui); font-variant-numeric: tabular-nums; }
 .rows.audit .row { grid-template-columns: 1fr auto; }
 .rows.stacked .row { grid-template-columns: 1fr; }
 .rows.inbox .message { grid-column: 1 / -1; white-space: pre-line; color: var(--ink); }
@@ -477,15 +484,17 @@ dialog.menu .buttons form { margin: 0; }
 .small-figure { margin-bottom: var(--s-2); align-items: center; }
 .small-figure .value { font-size: var(--step-4); }
 
-.totals { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-bottom: var(--s-8); }
-.total { padding: var(--s-5); border-radius: var(--r-card); background: var(--sunken); }
-.total span { display: block; color: var(--muted); font-size: var(--step--1); font-weight: 600; }
-.total strong {
-  display: block; margin-top: var(--s-2);
+.spend-summary { margin-bottom: var(--s-10); }
+.spend-summary > .bar { height: 12px; }
+.spend-totals {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-5) var(--s-4);
+  margin: 0 0 var(--s-5); padding-top: var(--s-4); border-top: 2px solid var(--ink);
+}
+.spend-totals dt { display: flex; align-items: center; gap: var(--s-2); color: var(--muted); font-size: var(--step--1); font-weight: 600; line-height: 1.3; }
+.spend-totals dd {
+  margin: var(--s-2) 0 0; overflow-wrap: anywhere;
   font: 900 var(--step-3)/1 var(--font-display); font-stretch: var(--condensed); font-variant-numeric: tabular-nums;
 }
-.total:first-child { background: var(--signal); }
-.total:first-child span { color: var(--ink); }
 
 .mini-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); }
 .mini-totals div { display: grid; gap: var(--s-1); align-content: start; }
@@ -497,14 +506,16 @@ dialog.menu .buttons form { margin: 0; }
 .money-line span { color: var(--muted); font-size: var(--step--1); }
 .money-line strong { font: 900 var(--step-2)/1.1 var(--font-display); font-stretch: var(--condensed); font-variant-numeric: tabular-nums; }
 
-.bar { display: flex; grid-column: 1 / -1; height: 10px; margin-top: var(--s-2); border-radius: var(--r-pill); overflow: hidden; background: var(--sunken); }
-.bar span { display: block; height: 100%; }
-.bar .paid, .key .paid { background: var(--ink); }
-.bar .committed, .key .committed { background: var(--signal); }
-.bar .pending, .key .pending { background: var(--wait); }
-.key { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); margin: calc(var(--s-4) * -1) 0 var(--s-6); color: var(--muted); font-size: var(--step--1); font-weight: 600; }
-.key span { display: inline-flex; align-items: center; gap: 6px; }
-.key i { display: inline-block; width: 12px; height: 12px; border-radius: 4px; }
+.bar { position: relative; display: block; grid-column: 1 / -1; height: 8px; margin: var(--s-2) 0 var(--s-1); }
+.bar.budgeted { border-radius: 0 4px 4px 0; background: var(--sunken); }
+.bar .fill { display: flex; min-width: 2px; height: 100%; border-radius: 0 4px 4px 0; overflow: hidden; }
+.bar .fill span { flex: none; height: 100%; }
+.bar .fill span + span { border-left: 2px solid var(--canvas); }
+.bar .budget { position: absolute; top: -4px; bottom: -4px; width: 2px; translate: -1px 0; background: var(--ink); }
+.bar .paid, .key.paid { background: var(--ink); }
+.bar .to-pay, .key.to-pay { background: var(--signal); }
+.bar .pending, .key.pending { background: var(--wait); }
+i.key { display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 3px; }
 
 /* Tables */
 
@@ -638,10 +649,10 @@ td a { font-weight: 700; }
 .promo-icon svg, .ai-icon svg { width: 22px; height: 22px; }
 
 .how .how-steps { padding-top: var(--s-4); }
-.how-steps, .ai-steps { list-style: none; display: grid; gap: var(--s-3); margin: 0; padding: 0; }
-.how-steps li, .ai-steps li { display: grid; grid-template-columns: 14px 1fr; gap: var(--s-3); align-items: baseline; color: var(--muted); font-size: var(--step--1); }
-.how-steps strong, .ai-steps strong { color: var(--ink); }
-.picture .rows { border-top: 1px solid var(--line); }
+.how-steps { list-style: none; display: grid; gap: var(--s-3); margin: 0; padding: 0; }
+.how-steps li { display: grid; grid-template-columns: 14px 1fr; gap: var(--s-3); align-items: baseline; color: var(--muted); font-size: var(--step--1); }
+.how-steps strong { color: var(--ink); }
+.picture .rows { margin-top: var(--s-4); border-top: 1px solid var(--line); }
 
 .first-up { margin-bottom: var(--s-10); padding: var(--s-6); }
 .first-up .asker { display: flex; align-items: center; gap: var(--s-3); margin-bottom: var(--s-5); font-size: var(--step--1); line-height: 1.35; }
@@ -759,7 +770,6 @@ body.focus { padding-bottom: 0; }
 .ai-panel .body { padding-top: var(--s-5); }
 .ai-head { display: flex; gap: var(--s-4); align-items: flex-start; }
 .ai-head h2 { margin-bottom: var(--s-2); }
-.ai-steps { padding: var(--s-4); border-radius: var(--r-control); background: var(--sunken); }
 
 .upload { display: grid; gap: var(--s-3); }
 .drop {
@@ -856,6 +866,33 @@ details.manual[open] > summary { margin-bottom: var(--s-2); }
 .trip .body .field-row { margin: 0; }
 .trip .body button { justify-self: start; }
 
+.payments-head { flex-wrap: wrap; }
+.payments-head > div { flex: 1 1 320px; }
+.invoice-check { flex: 0 1 480px; display: grid; gap: var(--s-2); }
+.invoice-check p { margin: 0; font-size: var(--step--1); }
+.invoice-check .notice { margin: 0; }
+.invoice-check .drop { padding: var(--s-3) var(--s-4); gap: var(--s-3); }
+.invoice-check .drop-mark { width: 40px; height: 40px; }
+.invoice-check .drop-mark svg { width: 20px; height: 20px; }
+.invoice-check .samples { margin: 0; font-size: var(--step--1); }
+
+.row.payable { align-items: start; }
+.row a.title { color: var(--ink); text-decoration: none; }
+.row a.title:hover { text-decoration: underline; }
+.pay-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-5); margin-top: var(--s-2); }
+.pay-actions details { margin: 0; }
+.pay-actions details[open] { flex-basis: 100%; }
+.pay-actions details[open] + a { display: none; }
+.pay-actions summary {
+  display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--s-4);
+  border-radius: var(--r-pill); background: var(--sunken); color: var(--ink); font-size: var(--step--1);
+  transition: background-color .15s;
+}
+.pay-actions summary:hover { background: var(--sunken-2); }
+.pay-actions > a { display: inline-flex; align-items: center; min-height: 40px; font-size: var(--step--1); font-weight: 700; }
+.pay-form { max-width: 560px; padding: var(--s-5); border-radius: var(--r-card); background: var(--sunken); }
+.pay-form button { width: 100%; }
+
 .import-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-bottom: var(--s-6); }
 
 /* Errors */
@@ -870,7 +907,7 @@ details.manual[open] > summary { margin-bottom: var(--s-2); }
 
 @media (min-width: 720px) {
   :root { --gutter: var(--s-8); }
-  .totals { grid-template-columns: repeat(4, 1fr); }
+  .spend-totals { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .field-row { grid-template-columns: 1fr 1fr; }
   .filters .search { flex: 2 1 260px; }
   .people { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--s-8); }

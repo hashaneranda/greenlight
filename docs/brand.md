@@ -6,7 +6,7 @@ Greenlight should feel like an app people want to open, not like the accounting 
 
 A request's approval route is a row of signal lights. Green is approved, amber is waiting, hollow is next in line, red is sent back. The light that is waiting for you breathes. The same lights appear in lists, on the request page, in the review cards and in the app icon, so the meaning is learned once.
 
-One vivid signal green is the only accent. It is always a fill with ink on it: the primary button, the "+", the current tab, the unread count, the approved total. It never carries text on white, because it is too light to read there.
+One vivid signal green is the only accent. It is always a fill with ink on it: the primary button, the "+", the current tab, the unread count, the approved-but-unpaid part of a spend bar. It never carries text on white, because it is too light to read there.
 
 ## Type
 
@@ -50,7 +50,7 @@ Measured contrast (WCAG 2.2; text needs 4.5:1, lights and other state marks 3:1)
 | Pair | Ratio | Allowed for |
 | --- | --- | --- |
 | ink on canvas | 17.9 | Text |
-| ink on signal | 10.1 | Text: buttons, counts, the approved total |
+| ink on signal | 10.1 | Text: buttons, counts |
 | muted on canvas / on sunken | 5.6 / 5.1 | Text |
 | signal-ink on canvas | 6.6 | Links |
 | go on canvas | 5.0 | Text and lights |
@@ -58,6 +58,10 @@ Measured contrast (WCAG 2.2; text needs 4.5:1, lights and other state marks 3:1)
 | wait-mark on canvas | 4.2 | Lights only, never text |
 | go-ink on go-wash, wait-ink on wait-wash, stop-ink on stop-wash | 7.1, 7.3, 7.1 | Text on status washes |
 | signal on canvas | 1.8 | Never on its own: signal only appears as a fill with ink on it |
+
+## Spend bars
+
+Money in Payments and Insights is drawn as one bar per row: paid in ink, approved and still to pay in signal, waiting for approval in wait, with a 2px canvas gap between parts. The numbers are always written beside the bar in the same order, so the bar is never the only way to read them. A project's bar is a bullet bar: the track is its budget and an ink tick marks the budget line.
 
 ## Shape and layout
 
