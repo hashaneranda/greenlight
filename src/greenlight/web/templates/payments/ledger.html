@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "partials/icons.html" import icon %}
-{% from "partials/macros.html" import payment_rows %}
+{% from "partials/macros.html" import payment_rows, to_pay_rows %}
 {% block title %}Payments{% endblock %}
 {% block content %}
 {% set samples = [
@@ -9,66 +9,66 @@
   ("kolwezi-cooling-repair.pdf", "Kolwezi Cooling, aircon repair", "approval still pending"),
   ("copperbelt-catering.pdf", "Copperbelt Catering", "never requested"),
 ] %}
-<div class="page-head">
+<div class="page-head payments-head">
   <div>
+    {% if to_pay %}
+    <h1>{{ to_pay|sum(attribute="outstanding_usd")|usd }} to pay</h1>
+    <p>{{ to_pay|length }} approved request{{ "s" if to_pay|length != 1 }} not paid in full yet. Pay only what was approved.</p>
+    {% elif paid_in_full %}
+    <h1>All paid</h1>
+    <p>Every approved request is paid in full. New approvals show up here, ready to pay.</p>
+    {% else %}
     <h1>Payments</h1>
-    <p>Pay only what was approved. Check an invoice here first, then record the payment against its approval.</p>
+    <p>Nothing approved yet. Approved requests show up here, ready to pay.</p>
+    {% endif %}
   </div>
-</div>
 
-{% if user.can_record_payments %}
-<section class="sheet ai-panel" id="read" aria-labelledby="read-heading">
-  <div class="body">
-    <div class="ai-head">
-      <span class="ai-icon">{{ icon("spark") }}</span>
-      <div>
-        <h2 id="read-heading">Check an invoice before you pay it</h2>
-        <p class="muted">An AI model reads the invoice. Greenlight then looks for the approval it belongs to and warns you about anything that doesn't add up. You still decide, and nothing is paid until you confirm.</p>
-      </div>
-    </div>
-
-    <ol class="ai-steps">
-      <li><span class="light approved"></span><span><strong>Read</strong> supplier, invoice number, total and reference, with anything unclear marked</span></li>
-      <li><span class="light approved"></span><span><strong>Match</strong> it to an approved request by supplier, amount and GL number</span></li>
-      <li><span class="light pending"></span><span><strong>Flag</strong> invoices over the approval, or with no approval at all</span></li>
-    </ol>
-
+  {% if user.can_record_payments %}
+  <section class="invoice-check" id="read" aria-labelledby="read-heading">
+    <h2 id="read-heading" class="visually-hidden">Check an invoice</h2>
     {% if container.ai_enabled %}
     <form method="post" action="/payments/read-invoice" enctype="multipart/form-data" class="upload">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <label class="drop" for="invoice">
-        {{ icon("invoice") }}
-        <span><strong>Choose an invoice</strong><span class="muted">PDF or photo, up to 10 MB</span></span>
+      <label class="drop" for="invoice" data-drop>
+        <span class="drop-mark">{{ icon("invoice") }}</span>
+        <span class="drop-words">
+          <strong>Check an invoice</strong>
+          <span class="drop-file" data-file-name>PDF or photo, up to 10 MB</span>
+        </span>
         <input id="invoice" name="invoice" type="file" accept="application/pdf,image/*" required>
       </label>
       <button class="primary" type="submit" data-busy="Reading the invoice…">{{ icon("spark") }}Read and match</button>
     </form>
-    <p class="muted small">Invoice for something confidential? Record the payment from the request instead, so the invoice isn't sent to AI.</p>
+    <p class="muted small">AI reads it and finds its approval. Confidential? Record it below.</p>
     {% else %}
-    <p class="notice warn">Invoice reading needs an AI key, and none is set on this server yet. Until then, record payments from each request.</p>
+    <p class="notice warn">Reading invoices needs an AI key. Record payments below for now.</p>
     {% endif %}
 
     {% if container.settings.environment != "production" %}
     <details class="samples">
-      <summary>No invoice to hand? Try a sample</summary>
+      <summary>Try a sample invoice</summary>
       <ul class="rows flat">
         {% for file, name, outcome in samples %}
         <li class="row"><a class="title" href="{{ url_for('static', path='samples/' ~ file) }}" download>{{ name }}</a><span class="sub end">{{ outcome }}</span></li>
         {% endfor %}
       </ul>
-      <p class="muted small">Download one, then choose it above.</p>
     </details>
     {% endif %}
-  </div>
+  </section>
+  {% endif %}
+</div>
+
+{% if to_pay %}
+<section class="sheet" aria-labelledby="to-pay-heading">
+  <div class="sheet-head"><h2 id="to-pay-heading">To pay</h2><span class="muted small">Oldest approval first</span></div>
+  {{ to_pay_rows(to_pay, csrf, today) }}
 </section>
 {% endif %}
 
-<section class="sheet" aria-labelledby="ledger-heading">
-  <div class="sheet-head"><h2 id="ledger-heading">Approved spend</h2></div>
-  {% if approved %}
-  {{ payment_rows(approved) }}
-  {% else %}
-  <p class="empty"><strong>Nothing approved yet</strong>Approved requests show up here, ready to pay.</p>
-  {% endif %}
+{% if paid_in_full %}
+<section class="sheet" aria-labelledby="paid-heading">
+  <div class="sheet-head quiet"><h2 id="paid-heading">Paid in full</h2><span class="muted small">{{ paid_in_full|length }} request{{ "s" if paid_in_full|length != 1 }}</span></div>
+  {{ payment_rows(paid_in_full, quiet=True) }}
 </section>
+{% endif %}
 {% endblock %}
